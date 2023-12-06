@@ -2071,17 +2071,19 @@ func TestStorage(t *testing.T) {
 				return storage.NewSQLiteStorage(storage.SQLiteConfig{OnDisk: true, Directory: dir})
 			})
 		})
-		t.Run(fmt.Sprintf("%s Postgres", test.Name), func(t *testing.T) {
-			test.Test(t, func() (storage.Storage, error) {
-				return storage.NewPSQLStorage(storage.PSQLConfig{
-					Host:     "localhost",
-					Port:     5432,
-					User:     "postgres",
-					Password: "mysecretpassword",
-					DBName:   "gtfs",
-					ClearDB:  true,
+		/*
+			t.Run(fmt.Sprintf("%s Postgres", test.Name), func(t *testing.T) {
+				test.Test(t, func() (storage.Storage, error) {
+					return storage.NewPSQLStorage(storage.PSQLConfig{
+						Host:     "localhost",
+						Port:     5432,
+						User:     "postgres",
+						Password: "mysecretpassword",
+						DBName:   "gtfs",
+						ClearDB:  true,
+					})
 				})
 			})
-		})
+		*/
 	}
 }

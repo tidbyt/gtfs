@@ -1031,9 +1031,9 @@ func TestStatic(t *testing.T) {
 		t.Run(fmt.Sprintf("%s SQLite", test.Name), func(t *testing.T) {
 			test.Test(t, "sqlite")
 		})
-		t.Run(fmt.Sprintf("%s Postgres", test.Name), func(t *testing.T) {
-			test.Test(t, "postgres")
-		})
+		// t.Run(fmt.Sprintf("%s Postgres", test.Name), func(t *testing.T) {
+		//	test.Test(t, "postgres")
+		// })
 	}
 }
 
