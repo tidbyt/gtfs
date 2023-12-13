@@ -1108,6 +1108,15 @@ INNER JOIN routes ON trips.route_id = routes.id
 		fVals = append(fVals, filter.RouteID)
 	}
 
+	if len(filter.TripIDs) > 0 {
+		tripIDPlaceholders := []string{}
+		for range filter.TripIDs {
+			tripIDPlaceholders = append(tripIDPlaceholders, "?")
+		}
+		fParams = append(fParams, "trips.id IN ("+strings.Join(tripIDPlaceholders, ", ")+")")
+		fVals = append(fVals, filter.TripIDs...)
+	}
+
 	if len(filter.ServiceIDs) > 0 {
 		serviceIDPlaceholders := []string{}
 		for range filter.ServiceIDs {

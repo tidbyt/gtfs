@@ -1018,6 +1018,16 @@ WHERE stops.feed = $1 AND
 		pIdx++
 	}
 
+	if len(filter.TripIDs) > 0 {
+		tripIDPlaceholders := []string{}
+		for i := range filter.TripIDs {
+			tripIDPlaceholders = append(tripIDPlaceholders, fmt.Sprintf("$%d", pIdx+i))
+		}
+		fParams = append(fParams, "trips.id IN ("+strings.Join(tripIDPlaceholders, ", ")+")")
+		fVals = append(fVals, filter.TripIDs...)
+		pIdx += len(filter.TripIDs)
+	}
+
 	if len(filter.ServiceIDs) > 0 {
 		serviceIDPlaceholders := []string{}
 		for i := range filter.ServiceIDs {
