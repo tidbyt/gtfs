@@ -105,11 +105,12 @@ type StopTimeEventFilter struct {
 	// included.
 	StopID string
 
-	// Limit results to a set of services, a specific route and/or
-	// a set of route types.
+	// Limit results to a set of services, a specific route,
+	// a set of route types and/or a set of trips.
 	ServiceIDs []string
 	RouteID    string
 	RouteTypes []RouteType
+	TripIDs    []string
 
 	// Limit results to a direction. Pass -1 to include all
 	// directions.

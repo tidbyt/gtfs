@@ -52,8 +52,6 @@ func parseStopTimeTime(s string) (string, error) {
 	return fmt.Sprintf("%02d%02d%02d", hms[0], hms[1], hms[2]), nil
 }
 
-// Builds a map from trip_id to StopTimes ordered by sequence_id. This
-// order is important to support realtime updates.
 func ParseStopTimes(
 	writer storage.FeedWriter,
 	data io.Reader,
