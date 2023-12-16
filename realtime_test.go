@@ -877,7 +877,6 @@ func TestRealtimeTimeWindowing(t *testing.T) {
 			Time:         time.Date(2020, 1, 15, 23, 13, 0, 0, time.UTC),
 		},
 	}, departures)
-
 }
 
 // Make sure we can deal with trips that have loops. In these cases,
@@ -1293,4 +1292,76 @@ func TestRealtimeLoadError(t *testing.T) {
 	})
 	require.NoError(t, err)
 	assert.Error(t, gtfs.NewRealtime(static, reader).LoadData(context.Background(), [][]byte{data}))
+}
+
+// Static departures can get pushed into a realtime request window by
+// an update with delay.
+func TestRealtimeUpdatePushingDepartureIntoWindow(t *testing.T) {
+	static, reader := SimpleStaticFixture(t)
+	rt := gtfs.NewRealtime(static, reader)
+
+	// Along trip t1, we normally have stops s1,...,s4 at 23:00,
+	// ..., 23:03. This update adds a big delay to s3, and has s1
+	// departing way early.
+
+	feed := buildFeed(t, []TripUpdate{
+		{
+			TripID: "t1",
+			StopUpdates: []StopUpdate{
+				{
+					StopID:         "s1",
+					DepartureSet:   true,
+					DepartureDelay: -3600,
+				},
+				{
+					StopID:        "s3",
+					DepartureSet:  true,
+					DepartureTime: time.Date(2020, 1, 15, 23, 59, 30, 1, time.UTC),
+				},
+			},
+		},
+	})
+	require.NoError(t, rt.LoadData(context.Background(), [][]byte{feed}))
+
+	// stop s1 is early, and can be found around 22:00
+	departures, err := rt.Departures(
+		"s1",
+		time.Date(2020, 1, 15, 21, 55, 0, 0, time.UTC),
+		10*time.Minute,
+		-1, "", -1, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, len(departures))
+	assert.Equal(t, "t1", departures[0].TripID)
+	assert.Equal(t, "s1", departures[0].StopID)
+	assert.Equal(t, time.Date(2020, 1, 15, 22, 0, 0, 0, time.UTC), departures[0].Time)
+
+	// there's no departure from s1 around the original time
+	departures, err = rt.Departures(
+		"s1",
+		time.Date(2020, 1, 15, 22, 55, 0, 0, time.UTC),
+		10*time.Minute,
+		-1, "", -1, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, 0, len(departures))
+
+	// stop s3 is delayed, so it's not returned around 23:03
+	departures, err = rt.Departures(
+		"s3",
+		time.Date(2020, 1, 15, 23, 0, 0, 0, time.UTC),
+		10*time.Minute,
+		-1, "", -1, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, 0, len(departures))
+
+	// but it is returned around midnight
+	departures, err = rt.Departures(
+		"s3",
+		time.Date(2020, 1, 15, 23, 55, 0, 0, time.UTC),
+		10*time.Minute,
+		-1, "", -1, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, len(departures))
+	assert.Equal(t, "t1", departures[0].TripID)
+	assert.Equal(t, "s3", departures[0].StopID)
+	assert.Equal(t, time.Date(2020, 1, 15, 23, 59, 30, 0, time.UTC), departures[0].Time)
 }

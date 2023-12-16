@@ -1,4 +1,4 @@
-package gtfs
+package gtfs_test
 
 import (
 	"io/ioutil"
@@ -8,11 +8,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"tidbyt.dev/gtfs"
 	"tidbyt.dev/gtfs/parse"
 	"tidbyt.dev/gtfs/storage"
 )
 
-func loadFeed2(t *testing.T, backend string, filename string) *Static {
+func loadFeed2(t *testing.T, backend string, filename string) (*gtfs.Static, storage.FeedReader) {
 	var s storage.Storage
 	var err error
 	if backend == "memory" {
@@ -47,10 +48,10 @@ func loadFeed2(t *testing.T, backend string, filename string) *Static {
 	reader, err := s.GetReader("benchmarking")
 	require.NoError(t, err)
 
-	static, err := NewStatic(reader, metadata)
+	static, err := gtfs.NewStatic(reader, metadata)
 	require.NoError(t, err)
 
-	return static
+	return static, reader
 }
 
 func testGTFSStaticIntegrationNearbyStops(t *testing.T, backend string) {
@@ -59,7 +60,7 @@ func testGTFSStaticIntegrationNearbyStops(t *testing.T, backend string) {
 	}
 
 	// This is a giant GTFS file from the MTA
-	g := loadFeed2(t, backend, "testdata/mta_static.zip")
+	g, _ := loadFeed2(t, backend, "testdata/mta_static.zip")
 
 	// The 4 nearest stops for 544 Park Ave, BK. There are other
 	// stops with the same coordinates, but they all have
@@ -113,7 +114,7 @@ func testGTFSStaticIntegrationDepartures(t *testing.T, backend string) {
 	}
 
 	// This is a giant GTFS file from the MTA
-	g := loadFeed2(t, backend, "testdata/mta_static.zip")
+	g, _ := loadFeed2(t, backend, "testdata/mta_static.zip")
 
 	// Let's look at the G33S stop, also known as "Bedford -
 	// Nostrand Avs". Between 22:50 and 23:10 there are are 6
@@ -152,16 +153,19 @@ func testGTFSStaticIntegrationDepartures(t *testing.T, backend string) {
 	// Armed with this knowledge, we can now run some test
 	// queries.
 
+	tz, err := time.LoadLocation("America/New_York")
+	require.NoError(t, err)
+
 	// Feb 3rd is a Monday
-	departures, _ := g.Departures("G33S", time.Date(2020, 2, 3, 22, 50, 0, 0, g.location), 10*time.Minute, -1, "", -1, nil)
-	assert.Equal(t, []Departure{
+	departures, _ := g.Departures("G33S", time.Date(2020, 2, 3, 22, 50, 0, 0, tz), 10*time.Minute, -1, "", -1, nil)
+	assert.Equal(t, []gtfs.Departure{
 		{
 			StopID:       "G33S",
 			RouteID:      "G",
 			TripID:       "BFA19GEN-G051-Weekday-00_135800_G..S14R",
 			StopSequence: 9,
 			DirectionID:  1,
-			Time:         time.Date(2020, 2, 3, 22, 50, 30, 0, g.location),
+			Time:         time.Date(2020, 2, 3, 22, 50, 30, 0, tz),
 			Headsign:     "Church Av",
 		},
 		{
@@ -170,21 +174,21 @@ func testGTFSStaticIntegrationDepartures(t *testing.T, backend string) {
 			TripID:       "BFA19GEN-G051-Weekday-00_136700_G..S14R",
 			StopSequence: 9,
 			DirectionID:  1,
-			Time:         time.Date(2020, 2, 3, 22, 59, 30, 0, g.location),
+			Time:         time.Date(2020, 2, 3, 22, 59, 30, 0, tz),
 			Headsign:     "Church Av",
 		},
 	}, departures)
 
 	// Feb 17 is also a Monday, but President's Day
-	departures, _ = g.Departures("G33S", time.Date(2020, 2, 17, 22, 50, 0, 0, g.location), 10*time.Minute, -1, "", -1, nil)
-	assert.Equal(t, []Departure{
+	departures, _ = g.Departures("G33S", time.Date(2020, 2, 17, 22, 50, 0, 0, tz), 10*time.Minute, -1, "", -1, nil)
+	assert.Equal(t, []gtfs.Departure{
 		{
 			StopID:       "G33S",
 			RouteID:      "G",
 			TripID:       "BFA19GEN-G035-Saturday-00_135750_G..S16R",
 			StopSequence: 9,
 			DirectionID:  1,
-			Time:         time.Date(2020, 2, 17, 22, 52, 0, 0, g.location),
+			Time:         time.Date(2020, 2, 17, 22, 52, 0, 0, tz),
 			Headsign:     "Church Av",
 		},
 	}, departures)
@@ -192,15 +196,15 @@ func testGTFSStaticIntegrationDepartures(t *testing.T, backend string) {
 	// So to get 2 stops w need a larger window. These appear in
 	// reverse order in stop_times.txt, but will be still be
 	// returned ordered by departure time.
-	departures, _ = g.Departures("G33S", time.Date(2020, 2, 17, 22, 50, 0, 0, g.location), 13*time.Minute, -1, "", -1, nil)
-	assert.Equal(t, []Departure{
+	departures, _ = g.Departures("G33S", time.Date(2020, 2, 17, 22, 50, 0, 0, tz), 13*time.Minute, -1, "", -1, nil)
+	assert.Equal(t, []gtfs.Departure{
 		{
 			StopID:       "G33S",
 			RouteID:      "G",
 			TripID:       "BFA19GEN-G035-Saturday-00_135750_G..S16R",
 			StopSequence: 9,
 			DirectionID:  1,
-			Time:         time.Date(2020, 2, 17, 22, 52, 0, 0, g.location),
+			Time:         time.Date(2020, 2, 17, 22, 52, 0, 0, tz),
 			Headsign:     "Church Av",
 		},
 		{
@@ -209,21 +213,21 @@ func testGTFSStaticIntegrationDepartures(t *testing.T, backend string) {
 			TripID:       "BFA19GEN-G035-Saturday-00_136750_G..S16R",
 			StopSequence: 9,
 			DirectionID:  1,
-			Time:         time.Date(2020, 2, 17, 23, 2, 30, 0, g.location),
+			Time:         time.Date(2020, 2, 17, 23, 2, 30, 0, tz),
 			Headsign:     "Church Av",
 		},
 	}, departures)
 
 	// Feb 16 is a Sunday
-	departures, _ = g.Departures("G33S", time.Date(2020, 2, 16, 22, 50, 0, 0, g.location), 10*time.Minute, -1, "", -1, nil)
-	assert.Equal(t, []Departure{
+	departures, _ = g.Departures("G33S", time.Date(2020, 2, 16, 22, 50, 0, 0, tz), 10*time.Minute, -1, "", -1, nil)
+	assert.Equal(t, []gtfs.Departure{
 		{
 			StopID:       "G33S",
 			RouteID:      "G",
 			TripID:       "BFA19GEN-G036-Sunday-00_136550_G..S16R",
 			StopSequence: 9,
 			DirectionID:  1,
-			Time:         time.Date(2020, 2, 16, 23, 0, 0, 0, g.location),
+			Time:         time.Date(2020, 2, 16, 23, 0, 0, 0, tz),
 			Headsign:     "Church Av",
 		},
 	}, departures)
