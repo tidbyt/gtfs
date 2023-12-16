@@ -14,17 +14,27 @@ type Realtime struct {
 	static *Static
 	reader storage.FeedReader
 
-	updatesByTrip map[string][]RealtimeUpdate
+	updatesByTrip map[string][]*RealtimeUpdate
 	skippedTrips  map[string]bool
+
+	// TODO: These are used to expand the time window when
+	// querying static departures, to make sure delayed (and
+	// early) stops are retrieved (and then updated). Not pretty,
+	// and will result in larger time windows than
+	// necessary. Doing the same per stop is tricky, as stop
+	// delays propagate along the trip. Come up with a better
+	// approach.
+	minDelay time.Duration
+	maxDelay time.Duration
 }
 
 // Similar to parse.StopTimeUpdate, but trimmed down to what's
 // necessary to serve realtime predictions. Should be suitable for
 // caching and sharing with other instances.
 type RealtimeUpdate struct {
+	StopSequence   uint32
 	ArrivalDelay   time.Duration
 	DepartureDelay time.Duration
-	StopSequence   uint32
 	Type           parse.StopTimeUpdateScheduleRelationship
 }
 
@@ -42,6 +52,7 @@ func (rt *Realtime) LoadData(ctx context.Context, feedData [][]byte) error {
 	}
 
 	rt.skippedTrips = realtime.SkippedTrips
+	rt.updatesByTrip = map[string][]*RealtimeUpdate{}
 
 	// Retrieve Static stop time events for all trips in the realtime feed
 	trips := map[string]bool{}
@@ -72,7 +83,7 @@ func (rt *Realtime) LoadData(ctx context.Context, feedData [][]byte) error {
 
 	// Construct RealtimeUpdate objects from the parsed
 	// StopTimeUpdates.
-	rt.updatesByTrip = buildRealtimeUpdates(timezone, realtime.Updates, events)
+	rt.buildRealtimeUpdates(timezone, realtime.Updates, events)
 
 	return nil
 }
@@ -86,11 +97,12 @@ func (rt *Realtime) Departures(
 	directionID int8,
 	routeTypes []storage.RouteType) ([]Departure, error) {
 
-	// Get the static schedule for the requested time window.
+	// Get the scheduled departures. Extend the window so that
+	// delayed (or early) departures are included.
 	scheduled, err := rt.static.Departures(
 		stopID,
-		windowStart,
-		windowLength,
+		windowStart.Add(-rt.maxDelay),
+		windowLength-rt.minDelay+rt.maxDelay,
 		numDepartures,
 		routeID,
 		directionID,
@@ -167,30 +179,29 @@ func (rt *Realtime) Departures(
 			departures = append(departures, dep)
 		case parse.StopTimeUpdateScheduled:
 			// SCHEDULED => update to static schedule
-			if updates[idx].DepartureDelay > 0 {
-				dep.Time = dep.Time.Add(updates[idx].DepartureDelay)
-			}
-
-			// If the delay pushed the departure outside
-			// of the requested time window, it must be
-			// ignored
-			if dep.Time.Before(windowStart) || dep.Time.After(windowStart.Add(windowLength)) {
-				continue
-			}
-
+			dep.Time = dep.Time.Add(updates[idx].DepartureDelay)
 			departures = append(departures, dep)
 		}
 	}
 
-	sort.Slice(departures, func(i, j int) bool {
-		return departures[i].Time.Before(departures[j].Time)
+	// Filter out departures outside of the requested time
+	// window. Sort by time. Done.
+	result := []Departure{}
+	for _, dep := range departures {
+		if dep.Time.Before(windowStart) || dep.Time.After(windowStart.Add(windowLength)) {
+			continue
+		}
+		result = append(result, dep)
+	}
+
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].Time.Before(result[j].Time)
 	})
 
-	return departures, nil
+	return result, nil
 
 	// Missing:
 	//
-	//  - Trips pushed into the time window by a delay
 	//  - Added trips
 	//  - Added stops (is that a thing?)
 	//
@@ -260,17 +271,13 @@ func resolveStopReferences(updates []*parse.StopTimeUpdate, events []*storage.St
 	}
 }
 
-// The full GTFS-rt StopTimeUpdates are great and all, but we only
-// need some of the information they hold.
-//
-// This function takes StopTimeUpdates from a realtime feed, along
-// with all associated static StopTimeEvents, and returns
-// RealtimeUpdates, grouped by trip, and sorted by stop_sequence.
-func buildRealtimeUpdates(
+// Construct RealtimeUpdates from StopTimeUpdates and
+// StopTimeEvents. Groups them by trip and stop.
+func (rt *Realtime) buildRealtimeUpdates(
 	timezone *time.Location,
 	stups []*parse.StopTimeUpdate,
 	events []*storage.StopTimeEvent,
-) map[string][]RealtimeUpdate {
+) {
 
 	// Group static events by trip, and sort by stop_sequence
 	eventsByTrip := map[string][]*storage.StopTimeEvent{}
@@ -309,9 +316,12 @@ func buildRealtimeUpdates(
 		eventTime := upNoon.Add(-12 * time.Hour).Add(eventOffset)
 
 		return upTime.Sub(eventTime)
-	}
 
-	realtimeUpdates := map[string][]RealtimeUpdate{}
+		// NTS: should redo this to just compute diff in both
+		// directions, maybe guess date to cover DST switches,
+		// and then take the smaller one. If diff is 23h, then
+		// it's more likely to b 1h early than 23h late.
+	}
 
 	// Combine static schedule and realtime updates
 	for tripID, tripUpdates := range updatesByTrip {
@@ -339,24 +349,24 @@ func buildRealtimeUpdates(
 			// the stop should be skipped. No need to
 			// attach delays information.
 			if u.Type == parse.StopTimeUpdateNoData || u.Type == parse.StopTimeUpdateSkipped {
-				realtimeUpdates[tripID] = append(realtimeUpdates[tripID], RealtimeUpdate{
+				rtUp := &RealtimeUpdate{
 					StopSequence: u.StopSequence,
 					Type:         u.Type,
-				})
+				}
+				rt.updatesByTrip[tripID] = append(rt.updatesByTrip[tripID], rtUp)
 				continue
 			}
 
 			// Type is SCHEDULED. Compute delays.
-			rtUp := RealtimeUpdate{
+			rtUp := &RealtimeUpdate{
 				StopSequence: u.StopSequence,
 				Type:         u.Type,
 			}
 
 			if u.ArrivalIsSet {
-				// If exact time is provided, it takes
-				// precedence over delay.
+				// Feeds can use the timestamp to communicate delays
 				rtUp.ArrivalDelay = u.ArrivalDelay
-				if !u.ArrivalTime.IsZero() {
+				if !u.ArrivalTime.IsZero() && u.ArrivalDelay == 0 {
 					rtUp.ArrivalDelay = updateDelay(
 						events[ei].StopTime.ArrivalTime(),
 						u.ArrivalTime,
@@ -364,9 +374,7 @@ func buildRealtimeUpdates(
 				}
 			}
 			if u.DepartureIsSet {
-				// Same here: if exact time is
-				// provided, it takes precedene over
-				// delay.
+				// Same thing here
 				rtUp.DepartureDelay = u.DepartureDelay
 				if !u.DepartureTime.IsZero() {
 					rtUp.DepartureDelay = updateDelay(
@@ -379,10 +387,30 @@ func buildRealtimeUpdates(
 				// arrival delay applies to departure
 				rtUp.DepartureDelay = u.ArrivalDelay
 			}
+			if !u.ArrivalIsSet {
+				// Lacking Arrival data, assume
+				// departure delay applies to arrival
+				rtUp.ArrivalDelay = u.DepartureDelay
+			}
 
-			realtimeUpdates[tripID] = append(realtimeUpdates[tripID], rtUp)
+			// Track the min and max delays observed. This
+			// is used to expand time window when
+			// searching static schedule.
+			if rtUp.ArrivalDelay < rt.minDelay {
+				rt.minDelay = rtUp.ArrivalDelay
+			}
+			if rtUp.ArrivalDelay > rt.maxDelay {
+				rt.maxDelay = rtUp.ArrivalDelay
+			}
+			if rtUp.DepartureDelay < rt.minDelay {
+				rt.minDelay = rtUp.DepartureDelay
+			}
+			if rtUp.DepartureDelay > rt.maxDelay {
+				rt.maxDelay = rtUp.DepartureDelay
+			}
+
+			rt.updatesByTrip[tripID] = append(rt.updatesByTrip[tripID], rtUp)
+
 		}
 	}
-
-	return realtimeUpdates
 }
