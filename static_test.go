@@ -1,89 +1,21 @@
 package gtfs_test
 
 import (
-	"archive/zip"
-	"bytes"
 	"fmt"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 
 	"tidbyt.dev/gtfs"
-	"tidbyt.dev/gtfs/parse"
-	"tidbyt.dev/gtfs/storage"
 )
-
-func staticFromFiles(t *testing.T, backend string, files map[string][]string) *gtfs.Static {
-	var s storage.Storage
-	var err error
-	if backend == "memory" {
-		s = storage.NewMemoryStorage()
-	} else if backend == "sqlite" {
-		s, err = storage.NewSQLiteStorage()
-		require.NoError(t, err)
-	} else if backend == "postgres" {
-		s, err = storage.NewPSQLStorage(PostgresConnStr, true)
-		require.NoError(t, err)
-	} else {
-
-		t.Fatalf("Unknown backend: %s", backend)
-	}
-
-	if files["agency.txt"] == nil {
-		files["agency.txt"] = []string{"agency_timezone,agency_name,agency_url", "UTC,FooAgency,http://example.com"}
-	}
-	if files["calendar.txt"] == nil && files["calendar_dates.txt"] == nil {
-		files["calendar.txt"] = []string{"service_id"}
-	}
-	if files["routes.txt"] == nil {
-		files["routes.txt"] = []string{"route_id"}
-	}
-	if files["trips.txt"] == nil {
-		files["trips.txt"] = []string{"trip_id"}
-	}
-	if files["stops.txt"] == nil {
-		files["stops.txt"] = []string{"stop_id"}
-	}
-	if files["stop_times.txt"] == nil {
-		files["stop_times.txt"] = []string{"stop_id"}
-	}
-
-	buf := &bytes.Buffer{}
-	w := zip.NewWriter(buf)
-	for filename, content := range files {
-		f, err := w.Create(filename)
-		require.NoError(t, err)
-		_, err = f.Write([]byte(strings.Join(content, "\n")))
-		require.NoError(t, err)
-	}
-	require.NoError(t, w.Close())
-
-	feedWriter, err := s.GetWriter("test")
-	require.NoError(t, err)
-
-	metadata, err := parse.ParseStatic(feedWriter, buf.Bytes())
-	require.NoError(t, err)
-
-	require.NoError(t, feedWriter.Close())
-
-	reader, err := s.GetReader("test")
-	require.NoError(t, err)
-
-	static, err := gtfs.NewStatic(reader, metadata)
-	require.NoError(t, err)
-
-	return static
-}
 
 func testStaticDeparturesWindowing(t *testing.T, backend string) {
 	duration := func(h, m, s int) time.Duration {
 		return time.Duration(h)*time.Hour + time.Duration(m)*time.Minute + time.Duration(s)*time.Second
 	}
 
-	g := staticFromFiles(t, backend, map[string][]string{
+	g, _ := GTFSTest_BuildStatic(t, backend, map[string][]string{
 		// A weekdays only schedule
 		"calendar.txt": {
 			"service_id,start_date,end_date,monday,tuesday,wednesday,thursday,friday,saturday,sunday",
@@ -292,7 +224,7 @@ func testStaticDeparturesWindowing(t *testing.T, backend string) {
 }
 
 func testStaticDeparturesWeekendSchedule(t *testing.T, backend string) {
-	g := staticFromFiles(t, backend, map[string][]string{
+	g, _ := GTFSTest_BuildStatic(t, backend, map[string][]string{
 		// A weekend and a weekday schedules
 		"calendar.txt": {
 			"service_id,start_date,end_date,monday,tuesday,wednesday,thursday,friday,saturday,sunday",
@@ -387,7 +319,7 @@ func testStaticDeparturesWeekendSchedule(t *testing.T, backend string) {
 }
 
 func testStaticDeparturesTimezones(t *testing.T, backend string) {
-	g := staticFromFiles(t, backend, map[string][]string{
+	g, _ := GTFSTest_BuildStatic(t, backend, map[string][]string{
 		// Eastern Time
 		"agency.txt": {"agency_timezone,agency_name,agency_url", "America/New_York,MTA,http://example.com"},
 		// Mondays only!
@@ -464,7 +396,7 @@ func testStaticDeparturesTimezones(t *testing.T, backend string) {
 }
 
 func testStaticDeparturesOvernightTrip(t *testing.T, backend string) {
-	g := staticFromFiles(t, backend, map[string][]string{
+	g, _ := GTFSTest_BuildStatic(t, backend, map[string][]string{
 		"agency.txt": {"agency_timezone,agency_name,agency_url", "America/New_York,MTA,http://example.com"},
 		"calendar.txt": {
 			"service_id,start_date,end_date,monday,tuesday,wednesday,thursday,friday,saturday,sunday",
@@ -554,7 +486,7 @@ func testStaticDeparturesOvernightTrip(t *testing.T, backend string) {
 }
 
 func testStaticDeparturesCalendarDateOverride(t *testing.T, backend string) {
-	g := staticFromFiles(t, backend, map[string][]string{
+	g, _ := GTFSTest_BuildStatic(t, backend, map[string][]string{
 		"agency.txt": {"agency_timezone,agency_name,agency_url", "America/New_York,MTA,http://example.com"},
 		"calendar.txt": {
 			"service_id,start_date,end_date,monday,tuesday,wednesday,thursday,friday,saturday,sunday",
@@ -685,7 +617,7 @@ func testStaticDeparturesCalendarDateOverride(t *testing.T, backend string) {
 // using at the time of this writing).
 func testStaticDeparturesNoDepartureFromFinalStop(t *testing.T, backend string) {
 
-	g := staticFromFiles(t, backend, map[string][]string{
+	g, _ := GTFSTest_BuildStatic(t, backend, map[string][]string{
 		"agency.txt": {"agency_timezone,agency_name,agency_url", "America/New_York,MTA,http://example.com"},
 		"calendar.txt": {
 			"service_id,start_date,end_date,monday,tuesday,wednesday,thursday,friday,saturday,sunday",
@@ -737,7 +669,7 @@ func testStaticDeparturesFiltering(t *testing.T, backend string) {
 	// This weekend schedule has RouteA running alpha-beta-gamma
 	// and gamma-beta-alpha a few times per day. Route B does a
 	// single run beta-epsilon-gamma.
-	g := staticFromFiles(t, backend, map[string][]string{
+	g, _ := GTFSTest_BuildStatic(t, backend, map[string][]string{
 		"agency.txt": {"agency_timezone,agency_name,agency_url", "America/New_York,MTA,http://example.com"},
 		"calendar.txt": {
 			"service_id,start_date,end_date,monday,tuesday,wednesday,thursday,friday,saturday,sunday",
@@ -885,7 +817,7 @@ func testStaticDeparturesFiltering(t *testing.T, backend string) {
 // overrides the former.
 func testStaticDeparturesStopTimeWithHeadsignOverride(t *testing.T, backend string) {
 	// A single trip on Mondays, going through the alphabet
-	g := staticFromFiles(t, backend, map[string][]string{
+	g, _ := GTFSTest_BuildStatic(t, backend, map[string][]string{
 		"calendar.txt": {
 			"service_id,start_date,end_date,monday,tuesday,wednesday,thursday,friday,saturday,sunday",
 			"mondays,20200101,20201231,1,0,0,0,0,0,0",
@@ -950,7 +882,7 @@ func testStaticDeparturesStopTimeWithHeadsignOverride(t *testing.T, backend stri
 // Verifies that departures can be retrieved both for individual stops
 // and for their parent stations (if any)
 func testStaticDeparturesWithParentStations(t *testing.T, backend string) {
-	g := staticFromFiles(t, backend, map[string][]string{
+	g, _ := GTFSTest_BuildStatic(t, backend, map[string][]string{
 		"calendar.txt": {
 			"service_id,start_date,end_date,monday,tuesday,wednesday,thursday,friday,saturday,sunday",
 			"mondays,20200101,20201231,1,0,0,0,0,0,0",

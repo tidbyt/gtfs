@@ -1,7 +1,6 @@
 package gtfs_test
 
 import (
-	"io/ioutil"
 	"testing"
 	"time"
 
@@ -9,43 +8,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"tidbyt.dev/gtfs"
-	"tidbyt.dev/gtfs/parse"
 	"tidbyt.dev/gtfs/storage"
 )
-
-func loadFeed2(t *testing.T, backend string, filename string) (*gtfs.Static, storage.FeedReader) {
-	var s storage.Storage
-	var err error
-	if backend == "memory" {
-		s = storage.NewMemoryStorage()
-	} else if backend == "sqlite" {
-		s, err = storage.NewSQLiteStorage()
-		require.NoError(t, err)
-	} else if backend == "postgres" {
-		s, err = storage.NewPSQLStorage(PostgresConnStr, true)
-		require.NoError(t, err)
-	} else {
-		t.Fatalf("unknown backend %q", backend)
-	}
-
-	content, err := ioutil.ReadFile(filename)
-	require.NoError(t, err)
-
-	writer, err := s.GetWriter("benchmarking")
-	require.NoError(t, err)
-	metadata, err := parse.ParseStatic(writer, content)
-	require.NoError(t, err)
-	err = writer.Close()
-	require.NoError(t, err)
-
-	reader, err := s.GetReader("benchmarking")
-	require.NoError(t, err)
-
-	static, err := gtfs.NewStatic(reader, metadata)
-	require.NoError(t, err)
-
-	return static, reader
-}
 
 func testGTFSStaticIntegrationNearbyStops(t *testing.T, backend string) {
 	if testing.Short() {
@@ -53,7 +17,7 @@ func testGTFSStaticIntegrationNearbyStops(t *testing.T, backend string) {
 	}
 
 	// This is a giant GTFS file from the MTA
-	g, _ := loadFeed2(t, backend, "testdata/mta_static.zip")
+	g, _ := GTFSTest_LoadStaticFile(t, backend, "testdata/mta_static.zip")
 
 	// The 4 nearest stops for 544 Park Ave, BK. There are other
 	// stops with the same coordinates, but they all have
@@ -107,7 +71,7 @@ func testGTFSStaticIntegrationDepartures(t *testing.T, backend string) {
 	}
 
 	// This is a giant GTFS file from the MTA
-	g, _ := loadFeed2(t, backend, "testdata/mta_static.zip")
+	g, _ := GTFSTest_LoadStaticFile(t, backend, "testdata/mta_static.zip")
 
 	// Let's look at the G33S stop, also known as "Bedford -
 	// Nostrand Avs". Between 22:50 and 23:10 there are are 6
