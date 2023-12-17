@@ -1365,3 +1365,150 @@ func TestRealtimeUpdatePushingDepartureIntoWindow(t *testing.T) {
 	assert.Equal(t, "s3", departures[0].StopID)
 	assert.Equal(t, time.Date(2020, 1, 15, 23, 59, 30, 0, time.UTC), departures[0].Time)
 }
+
+// The spec doesn't cover this, but I've seen discussions about
+// transit agencies consider arrival ahead of schedule to indicate
+// recovery from any previous delays. I think this is only true for
+// "timepoint" stop_times, but at the time of this writing we're
+// assuming all stop_times are exact times.
+func TestRealtimeArrivalRecovery(t *testing.T) {
+
+	static, reader := SimpleStaticFixture(t)
+	rt := gtfs.NewRealtime(static, reader)
+
+	// Delay each departure by 30s at first stop
+	feed := buildFeed(t, []TripUpdate{
+		{
+			TripID: "t1",
+			StopUpdates: []StopUpdate{
+				{
+					StopID:         "s1",
+					DepartureSet:   true,
+					DepartureDelay: 30,
+				},
+				{
+					StopSequence: 2,
+					ArrivalSet:   true,
+					ArrivalDelay: -1,
+				},
+			},
+		},
+		{
+			TripID: "t2",
+			StopUpdates: []StopUpdate{
+				{
+					StopSequence:  1,
+					DepartureSet:  true,
+					DepartureTime: time.Date(2020, 1, 15, 23, 10, 30, 0, time.UTC),
+				},
+				{
+					StopID:       "s2",
+					ArrivalSet:   true,
+					ArrivalDelay: 0,
+				},
+			},
+		},
+		{
+			TripID: "t3",
+			StopUpdates: []StopUpdate{
+				{
+					StopID:         "z1",
+					DepartureSet:   true,
+					DepartureDelay: 30,
+				},
+				{
+					StopID:      "z2",
+					ArrivalSet:  true,
+					ArrivalTime: time.Date(2020, 1, 15, 23, 5, 58, 50, time.UTC),
+				},
+			},
+		},
+	})
+
+	require.NoError(t, rt.LoadData(context.Background(), [][]byte{feed}))
+
+	// Check the delays on the first stop
+	departures, err := rt.Departures("s1", time.Date(2020, 1, 15, 23, 0, 0, 0, time.UTC), 30*time.Minute, -1, "", -1, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, []gtfs.Departure{
+		{
+			RouteID:      "R1",
+			TripID:       "t1",
+			StopID:       "s1",
+			StopSequence: 1,
+			Time:         time.Date(2020, 1, 15, 23, 0, 30, 0, time.UTC),
+		},
+		{
+			RouteID:      "R1",
+			TripID:       "t2",
+			StopID:       "s1",
+			StopSequence: 1,
+			Time:         time.Date(2020, 1, 15, 23, 10, 30, 0, time.UTC),
+		},
+	}, departures)
+
+	departures, err = rt.Departures("z1", time.Date(2020, 1, 15, 23, 0, 0, 0, time.UTC), 30*time.Minute, -1, "", -1, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, []gtfs.Departure{
+		{
+			RouteID:      "R2",
+			TripID:       "t3",
+			StopID:       "z1",
+			StopSequence: 1,
+			Time:         time.Date(2020, 1, 15, 23, 5, 30, 0, time.UTC),
+		},
+	}, departures)
+
+	// And verify they've all recovered on the second stop
+	departures, err = rt.Departures("s2", time.Date(2020, 1, 15, 23, 0, 0, 0, time.UTC), 30*time.Minute, -1, "", -1, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, []gtfs.Departure{
+		{
+			RouteID:      "R1",
+			TripID:       "t1",
+			StopID:       "s2",
+			StopSequence: 2,
+			Time:         time.Date(2020, 1, 15, 23, 1, 0, 0, time.UTC),
+		},
+		{
+			RouteID:      "R1",
+			TripID:       "t2",
+			StopID:       "s2",
+			StopSequence: 2,
+			Time:         time.Date(2020, 1, 15, 23, 11, 0, 0, time.UTC),
+		},
+	}, departures)
+
+	departures, err = rt.Departures("z2", time.Date(2020, 1, 15, 23, 0, 0, 0, time.UTC), 30*time.Minute, -1, "", -1, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, []gtfs.Departure{
+		{
+			RouteID:      "R2",
+			TripID:       "t3",
+			StopID:       "z2",
+			StopSequence: 2,
+			Time:         time.Date(2020, 1, 15, 23, 6, 0, 0, time.UTC),
+		},
+	}, departures)
+
+	// And just to be paranoid, check that they remain on schedule
+	// for subsequent stops.
+	departures, err = rt.Departures("s3", time.Date(2020, 1, 15, 23, 0, 0, 0, time.UTC), 30*time.Minute, -1, "", -1, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, []gtfs.Departure{
+		{
+			RouteID:      "R1",
+			TripID:       "t1",
+			StopID:       "s3",
+			StopSequence: 3,
+			Time:         time.Date(2020, 1, 15, 23, 2, 0, 0, time.UTC),
+		},
+		{
+			RouteID:      "R1",
+			TripID:       "t2",
+			StopID:       "s3",
+			StopSequence: 3,
+			Time:         time.Date(2020, 1, 15, 23, 12, 0, 0, time.UTC),
+		},
+	}, departures)
+}
