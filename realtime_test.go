@@ -1,11 +1,8 @@
 package gtfs_test
 
 import (
-	"archive/zip"
-	"bytes"
 	"context"
 	"fmt"
-	"strings"
 	"testing"
 	"time"
 
@@ -15,71 +12,8 @@ import (
 	proto "google.golang.org/protobuf/proto"
 
 	"tidbyt.dev/gtfs"
-	"tidbyt.dev/gtfs/parse"
 	"tidbyt.dev/gtfs/storage"
 )
-
-// TODO: really annoying to have these helpers all over the tests...
-func staticAndReaderFromFiles(t *testing.T, backend string, files map[string][]string) (*gtfs.Static, storage.FeedReader) {
-	var s storage.Storage
-	var err error
-	if backend == "memory" {
-		s = storage.NewMemoryStorage()
-	} else if backend == "sqlite" {
-		s, err = storage.NewSQLiteStorage()
-		require.NoError(t, err)
-	} else if backend == "postgres" {
-		s, err = storage.NewPSQLStorage(PostgresConnStr, true)
-		require.NoError(t, err)
-	} else {
-		t.Fatalf("Unknown backend: %s", backend)
-	}
-
-	if files["agency.txt"] == nil {
-		files["agency.txt"] = []string{"agency_timezone,agency_name,agency_url", "UTC,FooAgency,http://example.com"}
-	}
-	if files["calendar.txt"] == nil && files["calendar_dates.txt"] == nil {
-		files["calendar.txt"] = []string{"service_id"}
-	}
-	if files["routes.txt"] == nil {
-		files["routes.txt"] = []string{"route_id"}
-	}
-	if files["trips.txt"] == nil {
-		files["trips.txt"] = []string{"trip_id"}
-	}
-	if files["stops.txt"] == nil {
-		files["stops.txt"] = []string{"stop_id"}
-	}
-	if files["stop_times.txt"] == nil {
-		files["stop_times.txt"] = []string{"stop_id"}
-	}
-
-	buf := &bytes.Buffer{}
-	w := zip.NewWriter(buf)
-	for filename, content := range files {
-		f, err := w.Create(filename)
-		require.NoError(t, err)
-		_, err = f.Write([]byte(strings.Join(content, "\n")))
-		require.NoError(t, err)
-	}
-	require.NoError(t, w.Close())
-
-	feedWriter, err := s.GetWriter("test")
-	require.NoError(t, err)
-
-	metadata, err := parse.ParseStatic(feedWriter, buf.Bytes())
-	require.NoError(t, err)
-
-	require.NoError(t, feedWriter.Close())
-
-	reader, err := s.GetReader("test")
-	require.NoError(t, err)
-
-	static, err := gtfs.NewStatic(reader, metadata)
-	require.NoError(t, err)
-
-	return static, reader
-}
 
 // Helpers for building gtfs-realtime feeds
 type StopUpdate struct {
@@ -188,7 +122,7 @@ func buildFeed(t *testing.T, tripUpdates []TripUpdate) [][]byte {
 // A simple Static fixture. Trips t1 and t2 cover the same three
 // stops s1-s3. Trip t3 covers z1-z2. Full service all days of 2020.
 func SimpleStaticFixture(t *testing.T) (*gtfs.Static, storage.FeedReader) {
-	static, reader := staticAndReaderFromFiles(t, "memory", map[string][]string{
+	static, reader := GTFSTest_BuildStatic(t, "memory", map[string][]string{
 		"calendar.txt": {
 			"service_id,start_date,end_date,monday,tuesday,wednesday,thursday,friday,saturday,sunday",
 			"everyday,20200101,20210101,1,1,1,1,1,1,1",
@@ -863,7 +797,7 @@ func TestRealtimeTimeWindowing(t *testing.T) {
 func TestRealtimeTripWithLoop(t *testing.T) {
 	// This static schedule has t1 running from s1 to s2, and then
 	// 3 loops s3-s5, and finally end of the trip at s3.
-	static, reader := staticAndReaderFromFiles(t, "memory", map[string][]string{
+	static, reader := GTFSTest_BuildStatic(t, "memory", map[string][]string{
 		// A weekdays only schedule
 		"calendar.txt": {
 			"service_id,start_date,end_date,monday,tuesday,wednesday,thursday,friday,saturday,sunday",
@@ -1033,7 +967,7 @@ func TestRealtimeDepartureFiltering(t *testing.T) {
 	// Two routes: bus going center to south and rail going center
 	// to east. Each route has two trips: one heading out, one
 	// heading in.
-	static, reader := staticAndReaderFromFiles(t, "memory", map[string][]string{
+	static, reader := GTFSTest_BuildStatic(t, "memory", map[string][]string{
 		// A weekdays only schedule
 		"calendar.txt": {
 			"service_id,start_date,end_date,monday,tuesday,wednesday,thursday,friday,saturday,sunday",

@@ -20,7 +20,7 @@ import (
 )
 
 func loadNYCFerryRealtime(t *testing.T, suffix string) *gtfs.Realtime {
-	static, reader := loadFeed2(t, "sqlite", "testdata/nycferry_static.zip")
+	static, reader := GTFSTest_LoadStaticFile(t, "sqlite", "testdata/nycferry_static.zip")
 
 	buf, err := ioutil.ReadFile(fmt.Sprintf("testdata/nycferry_realtime_%s", suffix))
 	require.NoError(t, err)

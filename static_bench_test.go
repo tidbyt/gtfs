@@ -1,67 +1,12 @@
 package gtfs_test
 
 import (
-	"io/ioutil"
 	"testing"
 	"time"
-
-	"tidbyt.dev/gtfs"
-	"tidbyt.dev/gtfs/parse"
-	"tidbyt.dev/gtfs/storage"
 )
 
-func loadFeed(b *testing.B, backend string, filename string) *gtfs.Static {
-	var s storage.Storage
-	var err error
-	if backend == "memory" {
-		s = storage.NewMemoryStorage()
-	} else if backend == "sqlite" {
-		s, err = storage.NewSQLiteStorage()
-		if err != nil {
-			b.Error(err)
-		}
-	} else if backend == "postgres" {
-		s, err = storage.NewPSQLStorage(PostgresConnStr, true)
-		if err != nil {
-			b.Error(err)
-		}
-	} else {
-		b.Error("unknown backend")
-	}
-
-	content, err := ioutil.ReadFile(filename)
-	if err != nil {
-		b.Error(err)
-	}
-
-	writer, err := s.GetWriter("benchmarking")
-	if err != nil {
-		b.Error(err)
-	}
-	metadata, err := parse.ParseStatic(writer, content)
-	if err != nil {
-		b.Error(err)
-	}
-	err = writer.Close()
-	if err != nil {
-		b.Error(err)
-	}
-
-	reader, err := s.GetReader("benchmarking")
-	if err != nil {
-		b.Error(err)
-	}
-
-	static, err := gtfs.NewStatic(reader, metadata)
-	if err != nil {
-		b.Error(err)
-	}
-
-	return static
-}
-
 func benchNearbyStops(b *testing.B, backend string) {
-	static := loadFeed(b, backend, "testdata/caltrain_20160406.zip")
+	static, _ := GTFSTest_LoadStaticFile(b, backend, "testdata/caltrain_20160406.zip")
 
 	b.ResetTimer()
 
@@ -75,7 +20,7 @@ func benchNearbyStops(b *testing.B, backend string) {
 }
 
 func benchDepartures(b *testing.B, backend string) {
-	static := loadFeed(b, backend, "testdata/caltrain_20160406.zip")
+	static, _ := GTFSTest_LoadStaticFile(b, backend, "testdata/caltrain_20160406.zip")
 
 	tz, err := time.LoadLocation("America/Los_Angeles")
 	if err != nil {
