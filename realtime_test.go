@@ -29,17 +29,9 @@ func staticAndReaderFromFiles(t *testing.T, backend string, files map[string][]s
 		s, err = storage.NewSQLiteStorage()
 		require.NoError(t, err)
 	} else if backend == "postgres" {
-		s, err = storage.NewPSQLStorage(storage.PSQLConfig{
-			Host:     "localhost",
-			Port:     5432,
-			User:     "postgres",
-			Password: "mysecretpassword",
-			DBName:   "gtfs",
-			ClearDB:  true,
-		})
+		s, err = storage.NewPSQLStorage(PostgresConnStr, true)
 		require.NoError(t, err)
 	} else {
-
 		t.Fatalf("Unknown backend: %s", backend)
 	}
 

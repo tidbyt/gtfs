@@ -72,8 +72,6 @@ func TestRealtimeIntegrationNYCFerryDelaysOnER(t *testing.T) {
 		},
 	}, departures)
 
-	fmt.Println("Failure below")
-
 	// Makes sure delay got propagated to Dumbo.
 	//
 	// Minor note: the original schedule has this departing 11:13,

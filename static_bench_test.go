@@ -1,15 +1,16 @@
-package gtfs
+package gtfs_test
 
 import (
 	"io/ioutil"
 	"testing"
 	"time"
 
+	"tidbyt.dev/gtfs"
 	"tidbyt.dev/gtfs/parse"
 	"tidbyt.dev/gtfs/storage"
 )
 
-func loadFeed(b *testing.B, backend string, filename string) *Static {
+func loadFeed(b *testing.B, backend string, filename string) *gtfs.Static {
 	var s storage.Storage
 	var err error
 	if backend == "memory" {
@@ -20,14 +21,7 @@ func loadFeed(b *testing.B, backend string, filename string) *Static {
 			b.Error(err)
 		}
 	} else if backend == "postgres" {
-		s, err = storage.NewPSQLStorage(storage.PSQLConfig{
-			Host:     "localhost",
-			Port:     5432,
-			User:     "postgres",
-			Password: "mysecretpassword",
-			DBName:   "gtfs",
-			ClearDB:  false,
-		})
+		s, err = storage.NewPSQLStorage(PostgresConnStr, true)
 		if err != nil {
 			b.Error(err)
 		}
@@ -58,7 +52,7 @@ func loadFeed(b *testing.B, backend string, filename string) *Static {
 		b.Error(err)
 	}
 
-	static, err := NewStatic(reader, metadata)
+	static, err := gtfs.NewStatic(reader, metadata)
 	if err != nil {
 		b.Error(err)
 	}
@@ -83,7 +77,12 @@ func benchNearbyStops(b *testing.B, backend string) {
 func benchDepartures(b *testing.B, backend string) {
 	static := loadFeed(b, backend, "testdata/caltrain_20160406.zip")
 
-	when := time.Date(2020, 2, 3, 8, 0, 0, 0, static.location)
+	tz, err := time.LoadLocation("America/Los_Angeles")
+	if err != nil {
+		b.Error(err)
+	}
+
+	when := time.Date(2020, 2, 3, 8, 0, 0, 0, tz)
 	window := 1 * time.Hour
 
 	stops, err := static.NearbyStops(40.734673, -73.989951, 0, nil)
@@ -118,8 +117,10 @@ func BenchmarkGTFSStatic(b *testing.B) {
 		b.Run(test.Name+"_sqlite", func(b *testing.B) {
 			test.Bench(b, "sqlite")
 		})
-		b.Run(test.Name+"_postgres", func(b *testing.B) {
-			test.Bench(b, "postgres")
-		})
+		if PostgresConnStr != "" {
+			b.Run(test.Name+"_postgres", func(b *testing.B) {
+				test.Bench(b, "postgres")
+			})
+		}
 	}
 }
