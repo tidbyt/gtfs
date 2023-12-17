@@ -46,17 +46,16 @@ type RealtimeUpdate struct {
 	Type           parse.StopTimeUpdateScheduleRelationship
 }
 
-func NewRealtime(static *Static, reader storage.FeedReader) *Realtime {
-	return &Realtime{
-		static: static,
-		reader: reader,
+func NewRealtime(ctx context.Context, static *Static, reader storage.FeedReader, feeds [][]byte) (*Realtime, error) {
+	rt := &Realtime{
+		static:        static,
+		reader:        reader,
+		updatesByTrip: map[string][]*RealtimeUpdate{},
 	}
-}
 
-func (rt *Realtime) LoadData(ctx context.Context, feedData [][]byte) error {
-	realtime, err := parse.ParseRealtime(ctx, feedData)
+	realtime, err := parse.ParseRealtime(ctx, feeds)
 	if err != nil {
-		return fmt.Errorf("parsing realtime feeds: %w", err)
+		return nil, fmt.Errorf("parsing feeds: %w", err)
 	}
 
 	rt.skippedTrips = realtime.SkippedTrips
@@ -77,13 +76,13 @@ func (rt *Realtime) LoadData(ctx context.Context, feedData [][]byte) error {
 		TripIDs:     tripIDs,
 	})
 	if err != nil {
-		return fmt.Errorf("loading stop time events: %w", err)
+		return nil, fmt.Errorf("loading stop time events: %w", err)
 	}
 
 	// And the static feed's timezone
 	timezone, err := time.LoadLocation(rt.static.Metadata.Timezone)
 	if err != nil {
-		return fmt.Errorf("loading static timezone: %w", err)
+		return nil, fmt.Errorf("loading static timezone: %w", err)
 	}
 
 	// Infer missing stop_id/stop_sequence from static data
@@ -93,7 +92,7 @@ func (rt *Realtime) LoadData(ctx context.Context, feedData [][]byte) error {
 	// StopTimeUpdates.
 	rt.buildRealtimeUpdates(timezone, realtime.Updates, events)
 
-	return nil
+	return rt, nil
 }
 
 func (rt *Realtime) Departures(

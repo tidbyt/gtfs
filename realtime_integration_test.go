@@ -25,8 +25,8 @@ func loadNYCFerryRealtime(t *testing.T, suffix string) *gtfs.Realtime {
 	buf, err := ioutil.ReadFile(fmt.Sprintf("testdata/nycferry_realtime_%s", suffix))
 	require.NoError(t, err)
 
-	rt := gtfs.NewRealtime(static, reader)
-	require.NoError(t, rt.LoadData(context.Background(), [][]byte{buf}))
+	rt, err := gtfs.NewRealtime(context.Background(), static, reader, [][]byte{buf})
+	require.NoError(t, err)
 
 	return rt
 }
