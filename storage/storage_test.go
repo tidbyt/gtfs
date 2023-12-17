@@ -17,6 +17,14 @@ import (
 	"tidbyt.dev/gtfs/storage"
 )
 
+// Tests of the storage implementations. The in-memory and sqlite
+// implementations are always run, while postgres require the
+// PostgresConnStr below to be set.
+
+const (
+	PostgresConnStr = "" // "postgres://postgres:mysecretpassword@localhost:5432/gtfs?sslmode=disable"
+)
+
 type StorageBuilder func() (storage.Storage, error)
 
 func readerFromFiles(t *testing.T, sb StorageBuilder, files map[string][]string) storage.FeedReader {
@@ -2071,19 +2079,12 @@ func TestStorage(t *testing.T) {
 				return storage.NewSQLiteStorage(storage.SQLiteConfig{OnDisk: true, Directory: dir})
 			})
 		})
-		/*
+		if PostgresConnStr != "" {
 			t.Run(fmt.Sprintf("%s Postgres", test.Name), func(t *testing.T) {
 				test.Test(t, func() (storage.Storage, error) {
-					return storage.NewPSQLStorage(storage.PSQLConfig{
-						Host:     "localhost",
-						Port:     5432,
-						User:     "postgres",
-						Password: "mysecretpassword",
-						DBName:   "gtfs",
-						ClearDB:  true,
-					})
+					return storage.NewPSQLStorage(PostgresConnStr, true)
 				})
 			})
-		*/
+		}
 	}
 }

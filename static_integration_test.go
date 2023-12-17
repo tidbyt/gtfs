@@ -22,14 +22,7 @@ func loadFeed2(t *testing.T, backend string, filename string) (*gtfs.Static, sto
 		s, err = storage.NewSQLiteStorage()
 		require.NoError(t, err)
 	} else if backend == "postgres" {
-		s, err = storage.NewPSQLStorage(storage.PSQLConfig{
-			Host:     "localhost",
-			Port:     5432,
-			User:     "postgres",
-			Password: "mysecretpassword",
-			DBName:   "gtfs",
-			ClearDB:  true,
-		})
+		s, err = storage.NewPSQLStorage(PostgresConnStr, true)
 		require.NoError(t, err)
 	} else {
 		t.Fatalf("unknown backend %q", backend)
@@ -247,8 +240,10 @@ func TestStaticIntegration(t *testing.T) {
 		t.Run(test.Name+"_memory", func(t *testing.T) {
 			test.Test(t, "memory")
 		})
-		// t.Run(test.Name+"_postgres", func(t *testing.T) {
-		//	test.Test(t, "postgres")
-		// })
+		if PostgresConnStr != "" {
+			t.Run(test.Name+"_postgres", func(t *testing.T) {
+				test.Test(t, "postgres")
+			})
+		}
 	}
 }

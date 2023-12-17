@@ -15,19 +15,7 @@ const (
 	PSQLStopTimeBatchSize = 5000
 )
 
-type PSQLConfig struct {
-	Host     string
-	Port     int
-	User     string
-	Password string
-	DBName   string
-
-	ClearDB bool
-}
-
 type PSQLStorage struct {
-	PSQLConfig
-
 	db *sql.DB
 }
 
@@ -43,18 +31,22 @@ type PSQLFeedReader struct {
 	db *sql.DB
 }
 
-func NewPSQLStorage(cfg PSQLConfig) (*PSQLStorage, error) {
-	connStr := fmt.Sprintf(
-		"host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
-		cfg.Host, cfg.Port, cfg.User, cfg.Password, cfg.DBName,
-	)
+// Creates a new Postgres Storage using the provided connection string.
+//
+// If clearDB is true, the database will be cleared on startup. You
+// probably only want this for testing.
+func NewPSQLStorage(connStr string, clearDB bool) (*PSQLStorage, error) {
 
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open db: %w", err)
 	}
 
-	if cfg.ClearDB {
+	if db.Ping() != nil {
+		return nil, fmt.Errorf("failed to ping db: %w", err)
+	}
+
+	if clearDB {
 		_, err = db.Exec(`
 DROP TABLE IF EXISTS feed;
 DROP TABLE IF EXISTS agency;
@@ -91,8 +83,7 @@ CREATE TABLE IF NOT EXISTS feed (
 	}
 
 	return &PSQLStorage{
-		PSQLConfig: cfg,
-		db:         db,
+		db: db,
 	}, nil
 }
 
