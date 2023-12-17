@@ -10,6 +10,14 @@ import (
 	"tidbyt.dev/gtfs/storage"
 )
 
+// The Realtime side of the GTFS. Should (mostly) cover the basics of
+// cancelled trips, skipped stops, and delays.
+//
+// Added trips is currently not handled at all. Nor are any of the
+// realtime extensions. There's also bound to be various quirks and
+// edge cases specific to certain transit agencies that will have to
+// be tackled as they come up.
+
 type Realtime struct {
 	static *Static
 	reader storage.FeedReader
@@ -199,22 +207,6 @@ func (rt *Realtime) Departures(
 	})
 
 	return result, nil
-
-	// Missing:
-	//
-	//  - Added trips
-	//  - Added stops (is that a thing?)
-	//
-	//  - Early arrival should cancel propagation of (positive)
-	//  delays (see TestRealtimeArrivalRecovery) in internal gtfs
-	//  lib for motivation.
-	//
-	//  I suspect some agencies will only pass arrival OR
-	//  departure info. There should be some logic to translate
-	//  between the two. E.g., if train departs late from previous
-	//  stop, and departs late from current stop, it seems obvious
-	//  that arrival should also be considered late.
-
 }
 
 // Updates all updates to have both stop_id and stop_sequence set.
@@ -384,8 +376,11 @@ func (rt *Realtime) buildRealtimeUpdates(
 				}
 			} else {
 				// Lacking Departure data, assume
-				// arrival delay applies to departure
-				rtUp.DepartureDelay = u.ArrivalDelay
+				// arrival delay applies to
+				// departure. If the arrival is early,
+				// interpret it as a return to regular
+				// schedule.
+				rtUp.DepartureDelay = max(u.ArrivalDelay, 0)
 			}
 			if !u.ArrivalIsSet {
 				// Lacking Arrival data, assume
