@@ -119,6 +119,12 @@ func (rt *Realtime) Departures(
 		return nil, fmt.Errorf("getting static departures: %w", err)
 	}
 
+	fmt.Println("Scheduled:", scheduled)
+	fmt.Println("Window:", windowStart, windowLength)
+
+	fmt.Println("Adjusted window:", windowStart.Add(-rt.maxDelay), windowLength-rt.minDelay+rt.maxDelay)
+	fmt.Println("StopID:", stopID)
+
 	// Process each scheduled departure, applying realtime updates
 	departures := []Departure{}
 	for _, dep := range scheduled {

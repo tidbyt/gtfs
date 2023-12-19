@@ -1416,3 +1416,259 @@ func TestRealtimeArrivalRecovery(t *testing.T) {
 		},
 	}, departures)
 }
+
+func TestRealtimeDelayCrossingMidnight(t *testing.T) {
+	// A single trip passing through s1...s4 over midnight.
+	static, reader := GTFSTest_BuildStatic(t, "memory", map[string][]string{
+		"calendar.txt": {
+			"service_id,start_date,end_date,monday,tuesday,wednesday,thursday,friday,saturday,sunday",
+			"everyday,20200101,20210101,1,1,1,1,1,1,1",
+		},
+		"routes.txt": {
+			"route_id,route_short_name,route_type",
+			"R1,R_1,1",
+		},
+		"stops.txt": {
+			"stop_id,stop_name,stop_lat,stop_lon",
+			"s1,S1,1,1",
+			"s2,S2,2,3",
+			"s3,S3,4,5",
+			"s4,S4,6,7",
+		},
+		"trips.txt": {
+			"service_id,trip_id,route_id",
+			"everyday,t1,R1",
+		},
+		"stop_times.txt": {
+			"trip_id,stop_id,stop_sequence,departure_time,arrival_time",
+			"t1,s1,1,23:55:0,23:55:0",
+			"t1,s2,2,23:59:0,23:59:0",
+			"t1,s3,3,24:01:0,24:01:0",
+			"t1,s4,4,24:05:0,24:05:0",
+		},
+	})
+
+	for _, tc := range []struct {
+		Name                  string
+		StopUpdate            StopUpdate
+		ExpectedDepartureTime time.Time
+	}{
+		{
+			Name: "s1 delayed until before midnight via delay",
+			StopUpdate: StopUpdate{
+				StopID:         "s1",
+				DepartureSet:   true,
+				DepartureDelay: 180,
+			},
+			ExpectedDepartureTime: time.Date(2020, 1, 1, 23, 58, 0, 0, time.UTC),
+		},
+		{
+			Name: "s1 delayed until before midnight via time",
+			StopUpdate: StopUpdate{
+				StopID:        "s1",
+				DepartureSet:  true,
+				DepartureTime: time.Date(2020, 1, 1, 23, 59, 0, 0, time.UTC),
+			},
+			ExpectedDepartureTime: time.Date(2020, 1, 1, 23, 59, 0, 0, time.UTC),
+		},
+		{
+			Name: "s2 delayed until after midnight via delay",
+			StopUpdate: StopUpdate{
+				StopID:         "s2",
+				DepartureSet:   true,
+				DepartureDelay: 180,
+			},
+			ExpectedDepartureTime: time.Date(2020, 1, 2, 0, 2, 0, 0, time.UTC),
+		},
+		{
+			Name: "s2 delayed until after midnight via time",
+			StopUpdate: StopUpdate{
+				StopID:        "s2",
+				DepartureSet:  true,
+				DepartureTime: time.Date(2020, 1, 2, 0, 2, 0, 0, time.UTC),
+			},
+			ExpectedDepartureTime: time.Date(2020, 1, 2, 0, 2, 0, 0, time.UTC),
+		},
+		{
+			Name: "s3 delayed via delay",
+			StopUpdate: StopUpdate{
+				StopID:         "s3",
+				DepartureSet:   true,
+				DepartureDelay: 180,
+			},
+			ExpectedDepartureTime: time.Date(2020, 1, 2, 0, 4, 0, 0, time.UTC),
+		},
+		{
+			Name: "s3 departing early but after midnight, via delay",
+			StopUpdate: StopUpdate{
+				StopID:         "s3",
+				DepartureSet:   true,
+				DepartureDelay: -30,
+			},
+			ExpectedDepartureTime: time.Date(2020, 1, 2, 0, 0, 30, 0, time.UTC),
+		},
+		{
+			Name: "s3 departing early, before midnight, via delay",
+			StopUpdate: StopUpdate{
+				StopID:         "s3",
+				DepartureSet:   true,
+				DepartureDelay: -180,
+			},
+			ExpectedDepartureTime: time.Date(2020, 1, 2, 23, 58, 0, 0, time.UTC),
+		},
+		{
+			Name: "s3 departing early, before midnight, via time",
+			StopUpdate: StopUpdate{
+				StopID:        "s3",
+				DepartureSet:  true,
+				DepartureTime: time.Date(2020, 1, 2, 23, 57, 0, 0, time.UTC),
+			},
+			ExpectedDepartureTime: time.Date(2020, 1, 2, 23, 57, 0, 0, time.UTC),
+		},
+	} {
+		feed := buildFeed(t, []TripUpdate{
+			{
+				TripID:      "t1",
+				StopUpdates: []StopUpdate{tc.StopUpdate},
+			},
+		})
+		rt, err := gtfs.NewRealtime(context.Background(), static, reader, feed)
+		require.NoError(t, err)
+
+		departures, err := rt.Departures(
+			tc.StopUpdate.StopID,
+			tc.ExpectedDepartureTime.Add(-10*time.Minute),
+			20*time.Minute,
+			-1, "", -1, nil,
+		)
+		require.NoErrorf(t, err, "%s: %v", tc.Name, err)
+		require.Equal(t, 1, len(departures), tc.Name)
+		require.Equal(t, tc.ExpectedDepartureTime, departures[0].Time, tc.Name)
+	}
+}
+
+func TestRealtimeDelayCrossingDSTSwitch(t *testing.T) {
+	// This schedule has a trip that crosses the America/New_York
+	// DST switches:
+	//  - On March 10, 2024, at 02:00 time moves to 03:00.
+	//  - On November 3, 2024, at 02:00 time moves to 01:00.
+	static, reader := GTFSTest_BuildStatic(t, "memory", map[string][]string{
+		"agency.txt": {
+			"agency_id,agency_name,agency_url,agency_timezone",
+			"a,A,http://a.com/,America/New_York",
+		},
+		"calendar.txt": {
+			"service_id,start_date,end_date,monday,tuesday,wednesday,thursday,friday,saturday,sunday",
+			"everyday,20240101,20250101,1,1,1,1,1,1,1",
+		},
+		"routes.txt": {
+			"route_id,route_short_name,route_type",
+			"R1,R_1,1",
+		},
+		"stops.txt": {
+			"stop_id,stop_name,stop_lat,stop_lon",
+			"s1,S1,1,1",
+			"s2,S2,2,3",
+			"s3,S3,4,5",
+			"s4,S4,6,7",
+			"s5,S5,8,9",
+			"s6,S6,10,11",
+			"s7,S7,12,13",
+		},
+		"trips.txt": {
+			"service_id,trip_id,route_id",
+			"everyday,t1,R1",
+		},
+		"stop_times.txt": {
+			// Stops along s1-s7 every 30 minutes
+			"trip_id,stop_id,stop_sequence,departure_time,arrival_time",
+			"t1,s1,1,00:30:0,00:30:0",
+			"t1,s2,2,01:00:0,01:00:0",
+			"t1,s3,3,01:30:0,01:30:0",
+			"t1,s4,4,02:00:0,02:00:0",
+			"t1,s5,5,02:30:0,02:30:0",
+			"t1,s6,6,03:00:0,03:00:0",
+			"t1,s7,7,03:30:0,03:30:0",
+		},
+	})
+
+	tz, err := time.LoadLocation("America/New_York")
+	require.NoError(t, err)
+
+	timezone := tz
+	updateDelay := func(eventOffset time.Duration, updateTime time.Time) time.Duration {
+		upTime := updateTime.In(timezone)
+		upNoon := time.Date(upTime.Year(), upTime.Month(), upTime.Day(), 12, 0, 0, 0, timezone)
+
+		// Static schdule can have time exceeding 24h, in
+		// which case we need this adjustment to take
+		// potential DST switch into account.
+		if eventOffset >= 24*time.Hour {
+			upNoon = upNoon.AddDate(0, 0, -1)
+		}
+		eventTime := upNoon.Add(-12 * time.Hour).Add(eventOffset)
+
+		return upTime.Sub(eventTime)
+
+		// NTS: should redo this to just compute diff in both
+		// directions, maybe guess date to cover DST switches,
+		// and then take the smaller one. If diff is 23h, then
+		// it's more likely to b 1h early than 23h late.
+	}
+
+	fmt.Println("updateDelay", updateDelay(24*time.Hour+30*time.Minute, time.Date(2024, 3, 10, 0, 1, 0, 0, tz)))
+
+	for _, tc := range []struct {
+		Name                  string
+		StopUpdate            StopUpdate
+		ExpectedDepartureTime time.Time
+	}{
+		{
+			Name: "delay _not_ crossing into DST (via delay)",
+			StopUpdate: StopUpdate{
+				StopID:         "s3",
+				DepartureSet:   true,
+				DepartureDelay: 29*60 + 59,
+			},
+			ExpectedDepartureTime: time.Date(2024, 3, 10, 0, 59, 59, 0, tz),
+		},
+		{
+			Name: "delay _not_ crossing into DST (via time)",
+			StopUpdate: StopUpdate{
+				StopID:        "s3",
+				DepartureSet:  true,
+				DepartureTime: time.Date(2024, 3, 10, 0, 59, 59, 0, tz),
+			},
+			ExpectedDepartureTime: time.Date(2024, 3, 10, 0, 59, 59, 0, tz),
+		},
+		{
+			Name: "delay crossing into DST (via delay)",
+			StopUpdate: StopUpdate{
+				StopID:         "s3",
+				DepartureSet:   true,
+				DepartureDelay: 30*60 + 1,
+			},
+			ExpectedDepartureTime: time.Date(2024, 3, 10, 3, 0, 1, 0, tz),
+		},
+	} {
+		fmt.Println("Failure soon")
+		feed := buildFeed(t, []TripUpdate{
+			{
+				TripID:      "t1",
+				StopUpdates: []StopUpdate{tc.StopUpdate},
+			},
+		})
+		rt, err := gtfs.NewRealtime(context.Background(), static, reader, feed)
+		require.NoError(t, err)
+
+		departures, err := rt.Departures(
+			tc.StopUpdate.StopID,
+			tc.ExpectedDepartureTime.Add(-3*time.Hour),
+			6*time.Hour,
+			-1, "", -1, nil,
+		)
+		require.NoErrorf(t, err, "%s: %v", tc.Name, err)
+		require.Equal(t, 1, len(departures), tc.Name)
+		require.Equal(t, tc.ExpectedDepartureTime, departures[0].Time, tc.Name)
+	}
+}
