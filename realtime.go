@@ -119,12 +119,6 @@ func (rt *Realtime) Departures(
 		return nil, fmt.Errorf("getting static departures: %w", err)
 	}
 
-	fmt.Println("Scheduled:", scheduled)
-	fmt.Println("Window:", windowStart, windowLength)
-
-	fmt.Println("Adjusted window:", windowStart.Add(-rt.maxDelay), windowLength-rt.minDelay+rt.maxDelay)
-	fmt.Println("StopID:", stopID)
-
 	// Process each scheduled departure, applying realtime updates
 	departures := []Departure{}
 	for _, dep := range scheduled {
@@ -301,23 +295,36 @@ func (rt *Realtime) buildRealtimeUpdates(
 	// Computes delay of an update, given the correspnding time
 	// from static schedule.
 	updateDelay := func(eventOffset time.Duration, updateTime time.Time) time.Duration {
-		upTime := updateTime.In(timezone)
-		upNoon := time.Date(upTime.Year(), upTime.Month(), upTime.Day(), 12, 0, 0, 0, timezone)
 
-		// Static schdule can have time exceeding 24h, in
-		// which case we need this adjustment to take
-		// potential DST switch into account.
-		if eventOffset >= 24*time.Hour {
-			upNoon = upNoon.AddDate(0, 0, -1)
+		// The eventOffset (from static GTFS) gives a time of
+		// day, as an offset from noon-12h in the local
+		// timezone. It's possible to apply to multiple dates,
+		// but most likely it's from the same day, or the day
+		// before the realtime update. Whichever's closer in
+		// time is what we pick.
+
+		sameNoonLocal := time.Date(updateTime.Year(), updateTime.Month(), updateTime.Day(), 12, 0, 0, 0, timezone)
+		sameNoonUTC := sameNoonLocal.UTC()
+		prevNoonUTC := sameNoonLocal.AddDate(0, 0, -1).UTC()
+
+		sameTime := sameNoonUTC.Add(-12 * time.Hour).Add(eventOffset)
+		prevTime := prevNoonUTC.Add(-12 * time.Hour).Add(eventOffset)
+
+		sameDiff := updateTime.Sub(sameTime)
+		prevDiff := updateTime.Sub(prevTime)
+
+		sameDiffAbs := sameDiff
+		if sameDiffAbs < 0 {
+			sameDiffAbs *= -1
 		}
-		eventTime := upNoon.Add(-12 * time.Hour).Add(eventOffset)
-
-		return upTime.Sub(eventTime)
-
-		// NTS: should redo this to just compute diff in both
-		// directions, maybe guess date to cover DST switches,
-		// and then take the smaller one. If diff is 23h, then
-		// it's more likely to b 1h early than 23h late.
+		prevDiffAbs := prevDiff
+		if prevDiffAbs < 0 {
+			prevDiffAbs *= -1
+		}
+		if sameDiffAbs < prevDiffAbs {
+			return sameDiff
+		}
+		return prevDiff
 	}
 
 	// Combine static schedule and realtime updates
