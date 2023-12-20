@@ -116,6 +116,13 @@ func rangePerDate(start time.Time, window time.Duration, maxTrip time.Duration) 
 
 	date := time.Date(start.Year(), start.Month(), start.Day(), 0, 0, 0, 0, start.Location())
 
+	// XXX: One issue here is (I think) that the day after the
+	// time window can possibly push back a departure into
+	// previous day on DST change. E.g., if next day has departure
+	// at 00:01, then that's noon-12+00:01, and if DST begins on
+	// that day then the departure time will be 23:0 on previous
+	// day. Gonna ignore this for now.
+
 	for today := date.AddDate(0, 0, -1); today.Before(end); today = today.AddDate(0, 0, 1) {
 		noon := time.Date(today.Year(), today.Month(), today.Day(), 12, 0, 0, 0, today.Location())
 		tomorrow := today.AddDate(0, 0, 1)

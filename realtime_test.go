@@ -1416,3 +1416,585 @@ func TestRealtimeArrivalRecovery(t *testing.T) {
 		},
 	}, departures)
 }
+
+func TestRealtimeDelayCrossingMidnight(t *testing.T) {
+	// A single trip passing through s1...s4 over midnight.
+	static, reader := GTFSTest_BuildStatic(t, "memory", map[string][]string{
+		"calendar.txt": {
+			"service_id,start_date,end_date,monday,tuesday,wednesday,thursday,friday,saturday,sunday",
+			"everyday,20200101,20210101,1,1,1,1,1,1,1",
+		},
+		"routes.txt": {
+			"route_id,route_short_name,route_type",
+			"R1,R_1,1",
+		},
+		"stops.txt": {
+			"stop_id,stop_name,stop_lat,stop_lon",
+			"s1,S1,1,1",
+			"s2,S2,2,3",
+			"s3,S3,4,5",
+			"s4,S4,6,7",
+		},
+		"trips.txt": {
+			"service_id,trip_id,route_id",
+			"everyday,t1,R1",
+		},
+		"stop_times.txt": {
+			"trip_id,stop_id,stop_sequence,departure_time,arrival_time",
+			"t1,s1,1,23:55:0,23:55:0",
+			"t1,s2,2,23:59:0,23:59:0",
+			"t1,s3,3,24:01:0,24:01:0",
+			"t1,s4,4,24:05:0,24:05:0",
+		},
+	})
+
+	for _, tc := range []struct {
+		Name                  string
+		StopUpdate            StopUpdate
+		ExpectedDepartureTime time.Time
+	}{
+		{
+			Name: "s1 delayed until before midnight via delay",
+			StopUpdate: StopUpdate{
+				StopID:         "s1",
+				DepartureSet:   true,
+				DepartureDelay: 180,
+			},
+			ExpectedDepartureTime: time.Date(2020, 1, 1, 23, 58, 0, 0, time.UTC),
+		},
+		{
+			Name: "s1 delayed until before midnight via time",
+			StopUpdate: StopUpdate{
+				StopID:        "s1",
+				DepartureSet:  true,
+				DepartureTime: time.Date(2020, 1, 1, 23, 59, 0, 0, time.UTC),
+			},
+			ExpectedDepartureTime: time.Date(2020, 1, 1, 23, 59, 0, 0, time.UTC),
+		},
+		{
+			Name: "s2 delayed until after midnight via delay",
+			StopUpdate: StopUpdate{
+				StopID:         "s2",
+				DepartureSet:   true,
+				DepartureDelay: 180,
+			},
+			ExpectedDepartureTime: time.Date(2020, 1, 2, 0, 2, 0, 0, time.UTC),
+		},
+		{
+			Name: "s2 delayed until after midnight via time",
+			StopUpdate: StopUpdate{
+				StopID:        "s2",
+				DepartureSet:  true,
+				DepartureTime: time.Date(2020, 1, 2, 0, 2, 0, 0, time.UTC),
+			},
+			ExpectedDepartureTime: time.Date(2020, 1, 2, 0, 2, 0, 0, time.UTC),
+		},
+		{
+			Name: "s3 delayed via delay",
+			StopUpdate: StopUpdate{
+				StopID:         "s3",
+				DepartureSet:   true,
+				DepartureDelay: 180,
+			},
+			ExpectedDepartureTime: time.Date(2020, 1, 2, 0, 4, 0, 0, time.UTC),
+		},
+		{
+			Name: "s3 departing early but after midnight, via delay",
+			StopUpdate: StopUpdate{
+				StopID:         "s3",
+				DepartureSet:   true,
+				DepartureDelay: -30,
+			},
+			ExpectedDepartureTime: time.Date(2020, 1, 2, 0, 0, 30, 0, time.UTC),
+		},
+		{
+			Name: "s3 departing early, before midnight, via delay",
+			StopUpdate: StopUpdate{
+				StopID:         "s3",
+				DepartureSet:   true,
+				DepartureDelay: -180,
+			},
+			ExpectedDepartureTime: time.Date(2020, 1, 2, 23, 58, 0, 0, time.UTC),
+		},
+		{
+			Name: "s3 departing early, before midnight, via time",
+			StopUpdate: StopUpdate{
+				StopID:        "s3",
+				DepartureSet:  true,
+				DepartureTime: time.Date(2020, 1, 2, 23, 57, 0, 0, time.UTC),
+			},
+			ExpectedDepartureTime: time.Date(2020, 1, 2, 23, 57, 0, 0, time.UTC),
+		},
+	} {
+		feed := buildFeed(t, []TripUpdate{
+			{
+				TripID:      "t1",
+				StopUpdates: []StopUpdate{tc.StopUpdate},
+			},
+		})
+		rt, err := gtfs.NewRealtime(context.Background(), static, reader, feed)
+		require.NoError(t, err)
+
+		departures, err := rt.Departures(
+			tc.StopUpdate.StopID,
+			tc.ExpectedDepartureTime.Add(-10*time.Minute),
+			20*time.Minute,
+			-1, "", -1, nil,
+		)
+		require.NoErrorf(t, err, "%s: %v", tc.Name, err)
+		require.Equal(t, 1, len(departures), tc.Name)
+		require.Equal(t, tc.ExpectedDepartureTime, departures[0].Time, tc.Name)
+	}
+}
+
+func TestRealtimeDelayCrossingDSTBoundaryOnCurrentDay(t *testing.T) {
+	// Delays on trips crossing a DST boundary
+	static, reader := GTFSTest_BuildStatic(t, "memory", map[string][]string{
+		"agency.txt": {
+			"agency_id,agency_name,agency_url,agency_timezone",
+			"a,A,http://a.com/,America/New_York",
+		},
+		"calendar.txt": {
+			"service_id,start_date,end_date,monday,tuesday,wednesday,thursday,friday,saturday,sunday",
+			"everyday,20240101,20250101,1,1,1,1,1,1,1",
+		},
+		"routes.txt": {
+			"route_id,route_short_name,route_type",
+			"R1,R_1,1",
+		},
+		"stops.txt": {
+			"stop_id,stop_name,stop_lat,stop_lon",
+			"s1,S1,1,1",
+			"s2,S2,2,3",
+			"s3,S3,4,5",
+			"s4,S4,6,7",
+			"s5,S5,8,9",
+			"s6,S6,10,11",
+			"s7,S7,12,13",
+			"s8,S8,14,15",
+		},
+		"trips.txt": {
+			"service_id,trip_id,route_id",
+			"everyday,t1,R1",
+		},
+		"stop_times.txt": {
+			"trip_id,stop_id,stop_sequence,departure_time,arrival_time",
+			"t1,s1,1,00:30:0,00:30:0",
+			"t1,s2,2,01:00:0,01:00:0",
+			"t1,s3,3,01:30:0,01:30:0",
+			"t1,s4,4,02:00:0,02:00:0",
+			"t1,s5,5,02:30:0,02:30:0",
+			"t1,s6,6,03:00:0,03:00:0",
+			"t1,s7,7,03:30:0,03:30:0",
+			"t1,s8,8,04:00:0,03:30:0",
+		},
+	})
+
+	tz, err := time.LoadLocation("America/New_York")
+	require.NoError(t, err)
+
+	// In most cases below, times can be given via time.Date(), but
+	// when DST ends such times are ambiguous. This helper lets us
+	// specify EST vs DST for those cases.
+	parseT := func(t *testing.T, s string) time.Time {
+		x, err := time.Parse("2006-01-02 15:04:05 -0700 MST", s)
+		require.NoError(t, err)
+		return x
+	}
+
+	for _, tc := range []struct {
+		Name                  string
+		StopUpdate            StopUpdate
+		ExpectedDepartureTime string
+	}{
+		// DST begins on March 10, 2024 (at 02:00 time moves to 03:00).
+		// Schedule times are given as offset from noon-12h on service day.
+		{
+			Name: "delay _not_ crossing into DST boundary (via delay)",
+			StopUpdate: StopUpdate{
+				StopID:         "s5", // 02:30, i.e. 01:30 past midnight
+				DepartureSet:   true,
+				DepartureDelay: 180,
+			},
+			ExpectedDepartureTime: "2024-03-10 01:33:00 -0500 EST",
+		},
+		{
+			Name: "delay _not_ crossing into DST boundary (via time)",
+			StopUpdate: StopUpdate{
+				StopID:        "s5",
+				DepartureSet:  true,
+				DepartureTime: time.Date(2024, 3, 10, 1, 59, 59, 0, tz),
+			},
+			ExpectedDepartureTime: "2024-03-10 01:59:59 -0500 EST",
+		},
+		{
+			Name: "delay crossing into DST boundary (via delay)",
+			StopUpdate: StopUpdate{
+				StopID:         "s5",
+				DepartureSet:   true,
+				DepartureDelay: 30*60 + 1,
+			},
+			ExpectedDepartureTime: "2024-03-10 03:00:01 -0400 EDT",
+		},
+		{
+			Name: "delay crossing into DST boundary (via time)",
+			StopUpdate: StopUpdate{
+				StopID:        "s5",
+				DepartureSet:  true,
+				DepartureTime: time.Date(2024, 3, 10, 3, 4, 59, 0, tz),
+			},
+			ExpectedDepartureTime: "2024-03-10 03:04:59 -0400 EDT",
+		},
+		{
+			Name: "no delay on boundary into DST",
+			StopUpdate: StopUpdate{
+				StopID: "s6", // 03:00, i.e. 02:00 past midnight
+			},
+			ExpectedDepartureTime: "2024-03-10 03:00:00 -0400 EDT",
+		},
+		{
+			Name: "delay on boundary into DST (via delay)",
+			StopUpdate: StopUpdate{
+				StopID:         "s6",
+				DepartureSet:   true,
+				DepartureDelay: 1,
+			},
+			ExpectedDepartureTime: "2024-03-10 03:00:01 -0400 EDT",
+		},
+		{
+			Name: "delay on boundary into DST (via time)",
+			StopUpdate: StopUpdate{
+				StopID:        "s6",
+				DepartureSet:  true,
+				DepartureTime: time.Date(2024, 3, 10, 3, 0, 15, 0, tz),
+			},
+			ExpectedDepartureTime: "2024-03-10 03:00:15 -0400 EDT",
+		},
+		{
+			Name: "delay after DST began (via delay)",
+			StopUpdate: StopUpdate{
+				StopID:         "s7", // 03:30, i.e. 02:30 past midnight
+				DepartureSet:   true,
+				DepartureDelay: 1,
+			},
+			ExpectedDepartureTime: "2024-03-10 03:30:01 -0400 EDT",
+		},
+		{
+			Name: "delay after DST began (via time)",
+			StopUpdate: StopUpdate{
+				StopID:        "s7",
+				DepartureSet:  true,
+				DepartureTime: time.Date(2024, 3, 10, 3, 30, 15, 0, tz),
+			},
+			ExpectedDepartureTime: "2024-03-10 03:30:15 -0400 EDT",
+		},
+
+		// DST ends on November 3, 2024 (at 02:00 time moves to 01:00).
+		{
+			Name: "delay _not_ crossing out of DST (via delay)",
+			StopUpdate: StopUpdate{
+				StopID:         "s1", // 00:30 (-> 01:30 past midnight)
+				DepartureSet:   true,
+				DepartureDelay: 180,
+			},
+			ExpectedDepartureTime: "2024-11-03 01:33:00 -0400 EDT",
+		},
+
+		{
+			Name: "delay _not_ crossing out of DST (via time)",
+			StopUpdate: StopUpdate{
+				StopID:        "s1",
+				DepartureSet:  true,
+				DepartureTime: time.Date(2024, 11, 3, 1, 59, 59, 0, tz),
+			},
+			ExpectedDepartureTime: "2024-11-03 01:59:59 -0400 EDT",
+		},
+		{
+			Name: "delay crossing out of DST (via delay)",
+			StopUpdate: StopUpdate{
+				StopID:         "s1",
+				DepartureSet:   true,
+				DepartureDelay: 30*60 + 1,
+			},
+			ExpectedDepartureTime: "2024-11-03 01:00:01 -0500 EST",
+		},
+		{
+			Name: "delay crossing out of DST (via time)",
+			StopUpdate: StopUpdate{
+				StopID:        "s1",
+				DepartureSet:  true,
+				DepartureTime: parseT(t, "2024-11-03 01:04:59 -0500 EST"),
+			},
+			ExpectedDepartureTime: "2024-11-03 01:04:59 -0500 EST",
+		},
+		{
+			Name: "no delay on boundary out of DST",
+			StopUpdate: StopUpdate{
+				StopID: "s2", // 01:00 (-> 02:00 past midnight)
+			},
+			ExpectedDepartureTime: "2024-11-03 01:00:00 -0500 EST",
+		},
+		{
+			Name: "delay on boundary out of DST (via delay)",
+			StopUpdate: StopUpdate{
+				StopID:         "s2",
+				DepartureSet:   true,
+				DepartureDelay: 1,
+			},
+			ExpectedDepartureTime: "2024-11-03 01:00:01 -0500 EST",
+		},
+		{
+			Name: "delay after DST ended (via delay)",
+			StopUpdate: StopUpdate{
+				StopID:         "s3", // 01:30 (-> 02:30 past midnight)
+				DepartureSet:   true,
+				DepartureDelay: 1,
+			},
+			ExpectedDepartureTime: "2024-11-03 01:30:01 -0500 EST",
+		},
+		{
+			Name: "delay after DST ended (via time)",
+			StopUpdate: StopUpdate{
+				StopID:        "s3",
+				DepartureSet:  true,
+				DepartureTime: parseT(t, "2024-11-03 01:30:15 -0500 EST"),
+			},
+			ExpectedDepartureTime: "2024-11-03 01:30:15 -0500 EST",
+		},
+	} {
+		feed := buildFeed(t, []TripUpdate{
+			{
+				TripID:      "t1",
+				StopUpdates: []StopUpdate{tc.StopUpdate},
+			},
+		})
+		rt, err := gtfs.NewRealtime(context.Background(), static, reader, feed)
+		require.NoError(t, err)
+
+		expTime := parseT(t, tc.ExpectedDepartureTime)
+		departures, err := rt.Departures(
+			tc.StopUpdate.StopID,
+			expTime.Add(-10*time.Minute),
+			20*time.Minute,
+			-1, "", -1, nil,
+		)
+		require.NoErrorf(t, err, "%s: %v", tc.Name, err)
+		require.Equal(t, 1, len(departures), tc.Name)
+		require.Equal(t, expTime, departures[0].Time, tc.Name)
+	}
+}
+
+func TestRealtimeDelayCrossingDSTBoundaryFromPreviousDay(t *testing.T) {
+	// Delays on trips crossing a DST boundary on the _following
+	// day_ (via scheduled trips running past 24:00).
+	static, reader := GTFSTest_BuildStatic(t, "memory", map[string][]string{
+		"agency.txt": {
+			"agency_id,agency_name,agency_url,agency_timezone",
+			"a,A,http://a.com/,America/New_York",
+		},
+		"calendar.txt": {
+			"service_id,start_date,end_date,monday,tuesday,wednesday,thursday,friday,saturday,sunday",
+			"everyday,20240101,20250101,1,1,1,1,1,1,1",
+		},
+		"routes.txt": {
+			"route_id,route_short_name,route_type",
+			"R1,R_1,1",
+		},
+		"stops.txt": {
+			"stop_id,stop_name,stop_lat,stop_lon",
+			"s1,S1,1,1",
+			"s2,S2,2,3",
+			"s3,S3,4,5",
+			"s4,S4,6,7",
+			"s5,S5,8,9",
+			"s6,S6,10,11",
+			"s7,S7,12,13",
+		},
+		"trips.txt": {
+			"service_id,trip_id,route_id",
+			"everyday,t1,R1",
+		},
+		"stop_times.txt": {
+			"trip_id,stop_id,stop_sequence,departure_time,arrival_time",
+			"t1,s1,1,24:30:0,24:30:0",
+			"t1,s2,2,25:00:0,25:00:0",
+			"t1,s3,3,25:30:0,25:30:0",
+			"t1,s4,4,26:00:0,26:00:0",
+			"t1,s5,5,26:30:0,26:30:0",
+			"t1,s6,6,27:00:0,27:00:0",
+			"t1,s7,7,27:30:0,27:30:0",
+		},
+	})
+
+	tz, err := time.LoadLocation("America/New_York")
+	require.NoError(t, err)
+
+	// In most cases below, times can be given via time.Date(), but
+	// when DST ends such times are ambiguous. This helper lets us
+	// specify EST vs DST for those cases.
+	parseT := func(t *testing.T, s string) time.Time {
+		x, err := time.Parse("2006-01-02 15:04:05 -0700 MST", s)
+		require.NoError(t, err)
+		return x
+	}
+
+	for _, tc := range []struct {
+		Name                  string
+		StopUpdate            StopUpdate
+		ExpectedDepartureTime time.Time
+	}{
+		// DST begins on March 10, 2024 (at 02:00 time moves to 03:00).
+		{
+			Name: "delay _not_ crossing into DST (via delay)",
+			StopUpdate: StopUpdate{
+				StopID:         "s3", // 25:30, i.e. 01:30 ignoring DST
+				DepartureSet:   true,
+				DepartureDelay: 29*60 + 59,
+			},
+			ExpectedDepartureTime: time.Date(2024, 3, 10, 1, 59, 59, 0, tz),
+		},
+		{
+			Name: "delay _not_ crossing into DST (via time)",
+			StopUpdate: StopUpdate{
+				StopID:        "s3",
+				DepartureSet:  true,
+				DepartureTime: time.Date(2024, 3, 10, 1, 59, 59, 0, tz),
+			},
+			ExpectedDepartureTime: time.Date(2024, 3, 10, 1, 59, 59, 0, tz),
+		},
+		{
+			Name: "delay crossing into DST (via delay)",
+			StopUpdate: StopUpdate{
+				StopID:         "s3",
+				DepartureSet:   true,
+				DepartureDelay: 30*60 + 1,
+			},
+			ExpectedDepartureTime: time.Date(2024, 3, 10, 3, 0, 1, 0, tz),
+		},
+		{
+			Name: "delay crossing into DST (via time)",
+			StopUpdate: StopUpdate{
+				StopID:        "s3",
+				DepartureSet:  true,
+				DepartureTime: time.Date(2024, 3, 10, 3, 0, 2, 0, tz),
+			},
+			ExpectedDepartureTime: time.Date(2024, 3, 10, 3, 0, 2, 0, tz),
+		},
+		{
+			Name: "no delay on boundary of DST switch",
+			StopUpdate: StopUpdate{
+				StopID: "s4", // 26:00, i.e. 02:00 ignoring DST
+			},
+			ExpectedDepartureTime: time.Date(2024, 3, 10, 3, 0, 0, 0, tz),
+		},
+		{
+			Name: "delay after DST began (via delay)",
+			StopUpdate: StopUpdate{
+				StopID:         "s5", // 26:30, i.e. 02:30 ignoring DST
+				DepartureSet:   true,
+				DepartureDelay: 47,
+			},
+			ExpectedDepartureTime: time.Date(2024, 3, 10, 3, 30, 47, 0, tz),
+		},
+		{
+			Name: "delay after DST began (via time)",
+			StopUpdate: StopUpdate{
+				StopID:        "s5",
+				DepartureSet:  true,
+				DepartureTime: time.Date(2024, 3, 10, 3, 32, 1, 0, tz),
+			},
+			ExpectedDepartureTime: time.Date(2024, 3, 10, 3, 32, 1, 0, tz),
+		},
+
+		// DST ends on November 3, 2024 (at 02:00 time moves to 01:00)
+		{
+			Name: "delay _not_ crossing out of DST (via delay)",
+			StopUpdate: StopUpdate{
+				StopID:         "s3", // 25:30, i.e. 01:30 ignoring DST
+				DepartureSet:   true,
+				DepartureDelay: 29*60 + 7,
+			},
+			ExpectedDepartureTime: time.Date(2024, 11, 3, 1, 59, 7, 0, tz),
+		},
+		{
+			Name: "delay _not_ crossing out of DST (via time)",
+			StopUpdate: StopUpdate{
+				StopID:        "s3",
+				DepartureSet:  true,
+				DepartureTime: time.Date(2024, 11, 3, 1, 58, 5, 0, tz),
+			},
+			ExpectedDepartureTime: time.Date(2024, 11, 3, 1, 58, 5, 0, tz),
+		},
+		{
+			Name: "delay crossing out of DST (via delay)",
+			StopUpdate: StopUpdate{
+				StopID:         "s3",
+				DepartureSet:   true,
+				DepartureDelay: 30*60 + 1,
+			},
+			ExpectedDepartureTime: parseT(t, "2024-11-03 01:00:01 -0500 EST"),
+		},
+		{
+			Name: "delay crossing out of DST (via time)",
+			StopUpdate: StopUpdate{
+				StopID:        "s3",
+				DepartureSet:  true,
+				DepartureTime: parseT(t, "2024-11-03 01:00:02 -0500 EST"),
+			},
+			ExpectedDepartureTime: parseT(t, "2024-11-03 01:00:02 -0500 EST"),
+		},
+		{
+			Name: "no delay on boundary of DST end",
+			StopUpdate: StopUpdate{
+				StopID: "s4", // 26:00, i.e. 02:00 ignoring DST
+			},
+			ExpectedDepartureTime: parseT(t, "2024-11-03 01:00:00 -0500 EST"),
+		},
+		{
+			Name: "early departure pushing back before DST begins",
+			StopUpdate: StopUpdate{
+				StopID:         "s4",
+				DepartureSet:   true,
+				DepartureDelay: -1,
+			},
+			ExpectedDepartureTime: time.Date(2024, 11, 3, 1, 59, 59, 0, tz),
+		},
+		{
+			Name: "delay after DST ended (via delay)",
+			StopUpdate: StopUpdate{
+				StopID:         "s5", // 26:30, i.e. 02:30 ignoring DST
+				DepartureSet:   true,
+				DepartureDelay: 47,
+			},
+			ExpectedDepartureTime: parseT(t, "2024-11-03 01:30:47 -0500 EST"),
+		},
+		{
+			Name: "delay after DST ended (via time)",
+			StopUpdate: StopUpdate{
+				StopID:        "s5",
+				DepartureSet:  true,
+				DepartureTime: parseT(t, "2024-11-03 01:32:01 -0500 EST"),
+			},
+			ExpectedDepartureTime: parseT(t, "2024-11-03 01:32:01 -0500 EST"),
+		},
+	} {
+		feed := buildFeed(t, []TripUpdate{
+			{
+				TripID:      "t1",
+				StopUpdates: []StopUpdate{tc.StopUpdate},
+			},
+		})
+		rt, err := gtfs.NewRealtime(context.Background(), static, reader, feed)
+		require.NoError(t, err)
+
+		departures, err := rt.Departures(
+			tc.StopUpdate.StopID,
+			tc.ExpectedDepartureTime.Add(-3*time.Hour),
+			6*time.Hour,
+			-1, "", -1, nil,
+		)
+		require.NoErrorf(t, err, "%s: %v", tc.Name, err)
+		require.Equal(t, 1, len(departures), tc.Name)
+		require.Equal(t, tc.ExpectedDepartureTime, departures[0].Time, tc.Name)
+	}
+}

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"tidbyt.dev/gtfs"
 )
@@ -936,6 +937,170 @@ func testStaticDeparturesWithParentStations(t *testing.T, backend string) {
 	assert.Equal(t, "D", getDeps("D")[0].StopID)
 }
 
+func testStaticDeparturesDaylightsSavings(t *testing.T, backend string) {
+	// Two trips, one early in morning, one so late that it
+	// overflows into next day. Each on a separate route.
+	g, _ := GTFSTest_BuildStatic(t, backend, map[string][]string{
+		"agency.txt": {
+			"agency_id,agency_name,agency_url,agency_timezone",
+			"1,MTA,http://mta.com/,America/New_York",
+		},
+		"calendar.txt": {
+			"service_id,start_date,end_date,monday,tuesday,wednesday,thursday,friday,saturday,sunday",
+			"all,20200101,20201231,1,1,1,1,1,1,1",
+		},
+		"routes.txt": {
+			"route_id,route_long_name,route_type",
+			"L_early,The L Early,3",
+			"L_late,The L Late,3",
+		},
+		"stops.txt": {
+			"stop_id,stop_name,stop_lat,stop_lon",
+			"8av,8th Avenue,40.739777,-74.002578",
+			"6av,6th Avenue,40.737741,-73.996948",
+			"14st,14th Street,40.738228,-73.996209",
+			"3av,3rd Avenue,40.732849,-73.989433",
+			"1av,1st Avenue,40.730953,-73.981628",
+			"bedford,Bedford Avenue,40.717304,-73.956872",
+		},
+		"trips.txt": {
+			"trip_id,route_id,service_id,trip_headsign,direction_id,block_id",
+			"L_early,L_early,all,8av,0,1",
+			"L_late,L_late,all,8av,0,1",
+		},
+		"stop_times.txt": {
+			"trip_id,arrival_time,departure_time,stop_id,stop_sequence",
+			"L_early,00:00:00,00:00:00,8av,1",
+			"L_early,01:00:00,01:00:00,6av,2",
+			"L_early,02:00:00,02:00:00,14st,3",
+			"L_early,03:00:00,03:00:00,3av,4",
+			"L_early,04:00:00,04:00:00,1av,5",
+			"L_early,05:00:00,05:00:00,bedford,6",
+			"L_late,24:00:00,24:00:00,8av,1",
+			"L_late,25:00:00,25:00:00,6av,2",
+			"L_late,26:00:00,26:00:00,14st,3",
+			"L_late,27:00:00,27:00:00,3av,4",
+			"L_late,28:00:00,28:00:00,1av,5",
+			"L_late,29:00:00,29:00:00,bedford,6",
+		},
+	})
+
+	// Stuff can get weird around transition to and from daylight
+	// savings time. Times gets "pushed" 1h in some direction on
+	// day of the switch, as noon-12+time in the new "timezone" is
+	// different.
+
+	// In 2020, DST begun March 8 (at 2am, clocks went forward to
+	// 3am), and ended November 1 (at 2am, clocks went back to
+	// 1am).
+
+	for _, tc := range []struct {
+		name    string
+		routeID string
+		stopID  string
+		time    string
+	}{
+		// Early trip going into DST
+		{
+			name:    "L_early way before DST begins",
+			routeID: "L_early",
+			stopID:  "6av",
+			time:    "2020-03-08 00:00:00 -0500 EST",
+		},
+		{
+			name:    "L_early before DST begins",
+			routeID: "L_early",
+			stopID:  "14st",
+			time:    "2020-03-08 01:00:00 -0500 EST",
+		},
+		{
+			name:    "L_early as DST begins",
+			routeID: "L_early",
+			stopID:  "3av",
+			time:    "2020-03-08 03:00:00 -0400 EDT",
+		},
+		{
+			name:    "L_early after DST begins",
+			routeID: "L_early",
+			stopID:  "1av",
+			time:    "2020-03-08 04:00:00 -0400 EDT",
+		},
+
+		// Late trip going into DST
+		{
+			name:    "L_late before DST begins",
+			routeID: "L_late",
+			stopID:  "6av",
+			time:    "2020-03-08 01:00:00 -0500 EST",
+		},
+		{
+			name:    "late as DST begins",
+			routeID: "L_late",
+			stopID:  "14st",
+			time:    "2020-03-08 03:00:00 -0400 EDT",
+		},
+		{
+			name:    "late after DST begins",
+			routeID: "L_late",
+			stopID:  "3av",
+			time:    "2020-03-08 04:00:00 -0400 EDT",
+		},
+
+		// Early trip going out of DST
+		{
+			name:    "early before DST ends",
+			routeID: "L_early",
+			stopID:  "8av",
+			time:    "2020-11-01 01:00:00 -0400 EDT",
+		},
+		{
+			name:    "early as DST ends",
+			routeID: "L_early",
+			stopID:  "6av",
+			time:    "2020-11-01 01:00:00 -0500 EST",
+		},
+		{
+			name:    "early after DST ends",
+			routeID: "L_early",
+			stopID:  "14st",
+			time:    "2020-11-01 02:00:00 -0500 EST",
+		},
+
+		// Late trip going out of DST
+		{
+			name:    "late before DST ends",
+			routeID: "L_late",
+			stopID:  "6av",
+			time:    "2020-11-01 01:00:00 -0400 EDT",
+		},
+		{
+			name:    "late as DST ends",
+			routeID: "L_late",
+			stopID:  "14st",
+			time:    "2020-11-01 01:00:00 -0500 EST",
+		},
+		{
+			name:    "late after DST ends",
+			routeID: "L_late",
+			stopID:  "3av",
+			time:    "2020-11-01 02:00:00 -0500 EST",
+		},
+	} {
+		depTime, err := time.Parse("2006-01-02 15:04:05 -0700 MST", tc.time)
+		require.NoError(t, err)
+
+		departures, err := g.Departures(
+			tc.stopID,
+			depTime.Add(-1*time.Minute),
+			2*time.Minute, -1, tc.routeID, -1, nil,
+		)
+		require.NoError(t, err)
+		require.Equal(t, 1, len(departures), tc.name)
+		require.Equal(t, depTime, departures[0].Time, tc.name)
+	}
+
+}
+
 func TestStatic(t *testing.T) {
 	for _, test := range []struct {
 		Name string
@@ -950,6 +1115,7 @@ func TestStatic(t *testing.T) {
 		{"StaticDeparturesFiltering", testStaticDeparturesFiltering},
 		{"StaticDeparturesStopTimeWithHeadsignOverride", testStaticDeparturesStopTimeWithHeadsignOverride},
 		{"StaticDeparturesWithParentStations", testStaticDeparturesWithParentStations},
+		{"StaticDeparturesDaylightsSavings", testStaticDeparturesDaylightsSavings},
 	} {
 		t.Run(fmt.Sprintf("%s memory", test.Name), func(t *testing.T) {
 			test.Test(t, "memory")
