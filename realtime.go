@@ -19,6 +19,8 @@ import (
 // be tackled as they come up.
 
 type Realtime struct {
+	Timestamp unt64
+
 	static *Static
 	reader storage.FeedReader
 
@@ -58,6 +60,7 @@ func NewRealtime(ctx context.Context, static *Static, reader storage.FeedReader,
 		return nil, fmt.Errorf("parsing feeds: %w", err)
 	}
 
+	rt.Timestamp = realtime.Timestamp
 	rt.skippedTrips = realtime.SkippedTrips
 	rt.updatesByTrip = map[string][]*RealtimeUpdate{}
 

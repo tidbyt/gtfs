@@ -56,6 +56,7 @@ func TestParseRealtimeNoUpdates(t *testing.T) {
 		Header: &p.FeedHeader{
 			GtfsRealtimeVersion: proto.String("2.0"),
 			Incrementality:      p.FeedHeader_FULL_DATASET.Enum(),
+			Timestamp:           proto.Uint64(1702473763),
 		},
 	})
 	require.NoError(t, err)
@@ -64,6 +65,7 @@ func TestParseRealtimeNoUpdates(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 0, len(rt.SkippedTrips))
 	assert.Equal(t, 0, len(rt.Updates))
+	assert.Equal(t, uint64(1702473763), rt.Timestamp)
 }
 
 func TestParseRealtimeStopTimeUpdates(t *testing.T) {
@@ -182,4 +184,110 @@ func TestParseRealtimeCancelledTrip(t *testing.T) {
 	assert.Equal(t, 1, len(rt.SkippedTrips))
 	assert.True(t, rt.SkippedTrips["trip1"])
 	assert.Equal(t, 0, len(rt.Updates))
+}
+
+func TestParseRealtimeMultipleFeeds(t *testing.T) {
+	// This one cancels a trip
+	data1, err := proto.Marshal(&p.FeedMessage{
+		Header: &p.FeedHeader{
+			GtfsRealtimeVersion: proto.String("2.0"),
+			Timestamp:           proto.Uint64(1337),
+		},
+		Entity: []*p.FeedEntity{
+			{
+				Id: proto.String("entity1"),
+				TripUpdate: &p.TripUpdate{
+					Trip: &p.TripDescriptor{
+						TripId:               proto.String("trip1"),
+						RouteId:              proto.String("route1"),
+						ScheduleRelationship: p.TripDescriptor_CANCELED.Enum(),
+					},
+				},
+			},
+		},
+	})
+	require.NoError(t, err)
+
+	// This one delays arrival at a stop on another trip
+	data2, err := proto.Marshal(&p.FeedMessage{
+		Header: &p.FeedHeader{
+			GtfsRealtimeVersion: proto.String("2.0"),
+			Timestamp:           proto.Uint64(1338),
+		},
+		Entity: []*p.FeedEntity{
+			{
+				Id: proto.String("entity2"),
+				TripUpdate: &p.TripUpdate{
+					Trip: &p.TripDescriptor{
+						TripId:  proto.String("trip2"),
+						RouteId: proto.String("route2"),
+					},
+					StopTimeUpdate: []*p.TripUpdate_StopTimeUpdate{
+						{
+							StopSequence: proto.Uint32(1),
+							StopId:       proto.String("stop1"),
+							Arrival: &p.TripUpdate_StopTimeEvent{
+								Delay: proto.Int32(47),
+							},
+						},
+					},
+				},
+			},
+		},
+	})
+	require.NoError(t, err)
+
+	// This one delays dearture at a stop on another trip
+	data3, err := proto.Marshal(&p.FeedMessage{
+		Header: &p.FeedHeader{
+			GtfsRealtimeVersion: proto.String("2.0"),
+			Timestamp:           proto.Uint64(1339),
+		},
+		Entity: []*p.FeedEntity{
+			{
+				Id: proto.String("entity3"),
+				TripUpdate: &p.TripUpdate{
+					Trip: &p.TripDescriptor{
+						TripId:  proto.String("trip3"),
+						RouteId: proto.String("route3"),
+					},
+					StopTimeUpdate: []*p.TripUpdate_StopTimeUpdate{
+						{
+							StopSequence: proto.Uint32(1),
+							StopId:       proto.String("stop2"),
+							Departure: &p.TripUpdate_StopTimeEvent{
+								Delay: proto.Int32(48),
+							},
+						},
+					},
+				},
+			},
+		},
+	})
+	require.NoError(t, err)
+
+	// All three are merged into one
+	rt, err := ParseRealtime(context.Background(), [][]byte{data1, data2, data3})
+	require.NoError(t, err)
+
+	assert.Equal(t, 1, len(rt.SkippedTrips))
+	assert.True(t, rt.SkippedTrips["trip1"])
+	assert.Equal(t, 2, len(rt.Updates))
+
+	assert.Equal(t, "trip2", rt.Updates[0].TripID)
+	assert.Equal(t, "stop1", rt.Updates[0].StopID)
+	assert.Equal(t, uint32(1), rt.Updates[0].StopSequence)
+	assert.True(t, rt.Updates[0].ArrivalIsSet)
+	assert.Equal(t, 47*time.Second, rt.Updates[0].ArrivalDelay)
+	assert.False(t, rt.Updates[0].DepartureIsSet)
+
+	assert.Equal(t, "trip3", rt.Updates[1].TripID)
+	assert.Equal(t, "stop2", rt.Updates[1].StopID)
+	assert.Equal(t, uint32(1), rt.Updates[1].StopSequence)
+	assert.False(t, rt.Updates[1].ArrivalIsSet)
+	assert.True(t, rt.Updates[1].DepartureIsSet)
+	assert.Equal(t, 48*time.Second, rt.Updates[1].DepartureDelay)
+
+	// Timestamp is taken from the last of the three
+	assert.Equal(t, uint64(1339), rt.Timestamp)
 }

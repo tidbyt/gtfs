@@ -193,6 +193,7 @@ func TestRealtimeNoChanges(t *testing.T) {
 	static, reader := SimpleStaticFixture(t)
 	rt, err := gtfs.NewRealtime(context.Background(), static, reader, feed)
 	require.NoError(t, err)
+	assert.Equal(t, uint64(time.Date(2020, 1, 15, 23, 0, 0, 0, time.UTC).Unix()), rt.Timestamp)
 
 	// Check s1
 	departures, err := rt.Departures("s1", time.Date(2020, 1, 15, 23, 0, 0, 0, time.UTC), 10*time.Minute, -1, "", -1, nil)
