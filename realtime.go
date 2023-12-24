@@ -19,7 +19,7 @@ import (
 // be tackled as they come up.
 
 type Realtime struct {
-	Timestamp unt64
+	Timestamp uint64
 
 	static *Static
 	reader storage.FeedReader
@@ -48,10 +48,10 @@ type RealtimeUpdate struct {
 	Type           parse.StopTimeUpdateScheduleRelationship
 }
 
-func NewRealtime(ctx context.Context, static *Static, reader storage.FeedReader, feeds [][]byte) (*Realtime, error) {
+func NewRealtime(ctx context.Context, static *Static, feeds [][]byte) (*Realtime, error) {
 	rt := &Realtime{
 		static:        static,
-		reader:        reader,
+		reader:        static.Reader,
 		updatesByTrip: map[string][]*RealtimeUpdate{},
 	}
 

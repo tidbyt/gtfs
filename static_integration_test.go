@@ -17,7 +17,7 @@ func testGTFSStaticIntegrationNearbyStops(t *testing.T, backend string) {
 	}
 
 	// This is a giant GTFS file from the MTA
-	g, _ := GTFSTest_LoadStaticFile(t, backend, "testdata/mta_static.zip")
+	g := GTFSTest_LoadStaticFile(t, backend, "testdata/mta_static.zip")
 
 	// The 4 nearest stops for 544 Park Ave, BK. There are other
 	// stops with the same coordinates, but they all have
@@ -71,7 +71,7 @@ func testGTFSStaticIntegrationDepartures(t *testing.T, backend string) {
 	}
 
 	// This is a giant GTFS file from the MTA
-	g, _ := GTFSTest_LoadStaticFile(t, backend, "testdata/mta_static.zip")
+	g := GTFSTest_LoadStaticFile(t, backend, "testdata/mta_static.zip")
 
 	// Let's look at the G33S stop, also known as "Bedford -
 	// Nostrand Avs". Between 22:50 and 23:10 there are are 6

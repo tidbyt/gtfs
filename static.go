@@ -11,7 +11,7 @@ import (
 
 type Static struct {
 	Metadata *storage.FeedMetadata
-	reader   storage.FeedReader
+	Reader   storage.FeedReader
 
 	minMaxStopSeqByTripID map[string][2]uint32
 	location              *time.Location
@@ -40,7 +40,7 @@ func NewStatic(reader storage.FeedReader, metadata *storage.FeedMetadata) (*Stat
 
 	return &Static{
 		Metadata:              metadata,
-		reader:                reader,
+		Reader:                reader,
 		minMaxStopSeqByTripID: minMaxStopSeqByTripID,
 		location:              location,
 		maxDeparture:          maxDeparture,
@@ -58,7 +58,7 @@ func NewStatic(reader storage.FeedReader, metadata *storage.FeedMetadata) (*Stat
 // Only stations (location_type=1) and stops (location_type=0)
 // _without_ parent station are returned.
 func (s Static) NearbyStops(lat float64, lon float64, limit int, types []storage.RouteType) ([]storage.Stop, error) {
-	stops, err := s.reader.NearbyStops(lat, lon, limit, types)
+	stops, err := s.Reader.NearbyStops(lat, lon, limit, types)
 	if err != nil {
 		return nil, fmt.Errorf("getting nearby stops: %w", err)
 	}
@@ -74,7 +74,7 @@ func (s Static) NearbyStops(lat float64, lon float64, limit int, types []storage
 // NOTE: Headsign can also be set on stop_time, which messes this up
 // quite a bit.
 func (s Static) RouteDirections(stopID string) ([]*storage.RouteDirection, error) {
-	rds, err := s.reader.RouteDirections(stopID)
+	rds, err := s.Reader.RouteDirections(stopID)
 	if err != nil {
 		return nil, err
 	}
@@ -196,7 +196,7 @@ func (s Static) Departures(
 	for _, span := range rangePerDate(startTime, windowLength, s.maxDeparture) {
 
 		// Get active services for this day
-		serviceIDs, err := s.reader.ActiveServices(span.Date)
+		serviceIDs, err := s.Reader.ActiveServices(span.Date)
 		if err != nil {
 			return nil, err
 		}
@@ -205,7 +205,7 @@ func (s Static) Departures(
 		}
 
 		// stop time events for the day's span
-		events, err := s.reader.StopTimeEvents(storage.StopTimeEventFilter{
+		events, err := s.Reader.StopTimeEvents(storage.StopTimeEventFilter{
 			StopID:         stopID,
 			DirectionID:    int(directionID),
 			ServiceIDs:     serviceIDs,
