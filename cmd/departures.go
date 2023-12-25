@@ -5,6 +5,9 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+
+	"tidbyt.dev/gtfs"
+	"tidbyt.dev/gtfs/storage"
 )
 
 var departuresCmd = &cobra.Command{
@@ -31,12 +34,23 @@ func init() {
 func departures(cmd *cobra.Command, args []string) error {
 	stopID := args[0]
 
-	static, err := LoadStaticFeed(feedURL)
+	type DepartureProvider interface {
+		Departures(string, time.Time, time.Duration, int, string, int8, []storage.RouteType) ([]gtfs.Departure, error)
+	}
+
+	var provider DepartureProvider
+	var err error
+	if realtimeURL != "" {
+		provider, err = LoadRealtimeFeed()
+	} else {
+		provider, err = LoadStaticFeed()
+	}
+
 	if err != nil {
 		return err
 	}
 
-	departures, err := static.Departures(stopID, time.Now(), window, limit, routeID, int8(direction), nil)
+	departures, err := provider.Departures(stopID, time.Now(), window, limit, routeID, int8(direction), nil)
 	if err != nil {
 		return err
 	}

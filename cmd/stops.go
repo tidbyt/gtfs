@@ -49,7 +49,7 @@ func stops(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	static, err := LoadStaticFeed(feedURL)
+	static, err := LoadStaticFeed()
 	if err != nil {
 		return err
 	}
