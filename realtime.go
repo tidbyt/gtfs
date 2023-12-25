@@ -190,6 +190,7 @@ func (rt *Realtime) Departures(
 		case parse.StopTimeUpdateScheduled:
 			// SCHEDULED => update to static schedule
 			dep.Time = dep.Time.Add(updates[idx].DepartureDelay)
+			dep.Delay = updates[idx].DepartureDelay
 			departures = append(departures, dep)
 		}
 	}
