@@ -5,8 +5,6 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
-	"io/ioutil"
-	"net/http"
 	"sort"
 	"time"
 
@@ -20,6 +18,8 @@ const (
 	DefaultRealtimeTTL           = 1 * time.Minute
 	DefaultRealtimeTimeout       = 30 * time.Second
 	DefaultRealtimeMaxSize       = 1 << 20 // 1 MB
+	DefaultStaticTimeout         = 60 * time.Second
+	DefaultStaticMaxSize         = 800 << 20 // 800 MB
 )
 
 var ErrNoActiveFeed = errors.New("no active feed found")
@@ -30,6 +30,8 @@ type Manager struct {
 	RealtimeTTL     time.Duration
 	RealtimeTimeout time.Duration
 	RealtimeMaxSize int
+	StaticTimeout   time.Duration
+	StaticMaxSize   int
 	Downloader      downloader.Downloader
 	storage         storage.Storage
 }
@@ -39,16 +41,18 @@ type Manager struct {
 // By default, the manager will use a an in memory cache for realtime
 // data, but not for static schedules as these will be persisted in
 // storage.
-func NewManager(storage storage.Storage) *Manager {
+func NewManager(s storage.Storage) *Manager {
 	return &Manager{
 		RefreshInterval: DefaultStaticRefreshInterval,
 		RealtimeTTL:     DefaultRealtimeTTL,
 		RealtimeTimeout: DefaultRealtimeTimeout,
 		RealtimeMaxSize: DefaultRealtimeMaxSize,
+		StaticTimeout:   DefaultStaticTimeout,
+		StaticMaxSize:   DefaultStaticMaxSize,
 
 		Downloader: downloader.NewMemoryDownloader(),
 
-		storage: storage,
+		storage: s,
 	}
 }
 
@@ -138,6 +142,8 @@ func (m *Manager) LoadRealtime(
 		downloader.GetOptions{
 			Cache:    true,
 			CacheTTL: m.RealtimeTTL,
+			Timeout:  m.RealtimeTimeout,
+			MaxSize:  m.RealtimeMaxSize,
 		},
 	)
 	if err != nil {
@@ -232,21 +238,22 @@ func (m *Manager) refreshStatic(url string) (*storage.FeedMetadata, error) {
 	// TODO: add support for ETag?
 
 	// GET the feed
-	client := http.Client{Timeout: 60 * time.Second}
-	resp, err := client.Get(url)
+	body, err := m.Downloader.Get(
+		context.Background(),
+		url,
+		nil,
+		downloader.GetOptions{
+			Cache:   false,
+			Timeout: m.StaticTimeout,
+			MaxSize: m.StaticMaxSize,
+		},
+	)
 	if err != nil {
 		return nil, fmt.Errorf("downloading: %w", err)
 	}
-	defer resp.Body.Close()
-
-	// Compute SHA256 of body
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("reading: %w", err)
-	}
-	hash := fmt.Sprintf("%x", sha256.Sum256(body))
 
 	// Check if this exact feed is already in storage
+	hash := fmt.Sprintf("%x", sha256.Sum256(body))
 	feeds, err := m.storage.ListFeeds(storage.ListFeedsFilter{SHA256: hash})
 	if err != nil {
 		return nil, fmt.Errorf("listing feeds: %w", err)
