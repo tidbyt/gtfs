@@ -142,7 +142,7 @@ func (m *Manager) LoadRealtime(
 		downloader.GetOptions{
 			Cache:    true,
 			CacheTTL: m.RealtimeTTL,
-			TimeOut:  m.RealtimeTimeout,
+			Timeout:  m.RealtimeTimeout,
 			MaxSize:  m.RealtimeMaxSize,
 		},
 	)
