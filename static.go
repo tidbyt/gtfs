@@ -89,6 +89,7 @@ type Departure struct {
 	DirectionID  int8
 	Time         time.Time
 	Headsign     string
+	Delay        time.Duration
 }
 
 // Translates a time offset into a GTFS style HHMMSS string.

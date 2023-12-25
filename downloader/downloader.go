@@ -47,8 +47,6 @@ func HTTPGet(ctx context.Context, url string, headers map[string]string, options
 
 	defer resp.Body.Close()
 
-	fmt.Println("status", resp.StatusCode)
-
 	var reader io.Reader = resp.Body
 	if options.MaxSize > 0 {
 		reader = io.LimitReader(resp.Body, int64(options.MaxSize))
