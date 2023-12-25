@@ -69,6 +69,7 @@ func TestRealtimeIntegrationNYCFerryDelaysOnER(t *testing.T) {
 			DirectionID:  0,
 			Time:         time.Date(2020, 3, 2, 11, 7, 31, 0, tz),
 			Headsign:     "Wall St./Pier 11",
+			Delay:        391 * time.Second,
 		},
 	}, departures)
 
@@ -94,6 +95,7 @@ func TestRealtimeIntegrationNYCFerryDelaysOnER(t *testing.T) {
 			DirectionID:  0,
 			Time:         time.Date(2020, 3, 2, 11, 19, 31, 0, tz),
 			Headsign:     "Wall St./Pier 11",
+			Delay:        391 * time.Second,
 		},
 	}, departures)
 	return
@@ -144,6 +146,7 @@ func TestRealtimeIntegrationNYCFerryDelayWithRecoveryOnSB(t *testing.T) {
 			DirectionID:  1,
 			Time:         time.Date(2020, 3, 2, 15, 51, 27, 0, tz),
 			Headsign:     "Wall St./Pier 11",
+			Delay:        87 * time.Second,
 		},
 	}, departures)
 

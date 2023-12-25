@@ -346,6 +346,7 @@ func TestRealtimeDelayWithPropagation(t *testing.T) {
 			StopID:       "s2",
 			StopSequence: 2,
 			Time:         time.Date(2020, 1, 15, 23, 1, 30, 0, time.UTC),
+			Delay:        30 * time.Second,
 		},
 		{
 			RouteID:      "R1",
@@ -353,6 +354,7 @@ func TestRealtimeDelayWithPropagation(t *testing.T) {
 			StopID:       "s2",
 			StopSequence: 2,
 			Time:         time.Date(2020, 1, 15, 23, 11, 45, 0, time.UTC),
+			Delay:        45 * time.Second,
 		},
 	}, departures)
 
@@ -366,6 +368,7 @@ func TestRealtimeDelayWithPropagation(t *testing.T) {
 			StopID:       "s3",
 			StopSequence: 3,
 			Time:         time.Date(2020, 1, 15, 23, 2, 30, 0, time.UTC),
+			Delay:        30 * time.Second,
 		},
 		{
 			RouteID:      "R1",
@@ -452,6 +455,7 @@ func TestRealtimeNoData(t *testing.T) {
 			StopID:       "s1",
 			StopSequence: 1,
 			Time:         time.Date(2020, 1, 15, 23, 10, 45, 0, time.UTC),
+			Delay:        45 * time.Second,
 		},
 	}, departures)
 
@@ -464,8 +468,8 @@ func TestRealtimeNoData(t *testing.T) {
 			TripID:       "t1",
 			StopID:       "s2",
 			StopSequence: 2,
-			// delay propagated from s1
-			Time: time.Date(2020, 1, 15, 23, 1, 30, 0, time.UTC),
+			Time:         time.Date(2020, 1, 15, 23, 1, 30, 0, time.UTC),
+			Delay:        30 * time.Second,
 		},
 		{
 			RouteID:      "R1",
@@ -486,15 +490,16 @@ func TestRealtimeNoData(t *testing.T) {
 			TripID:       "t1",
 			StopID:       "s3",
 			StopSequence: 3,
-			// delay propagated here as well
-			Time: time.Date(2020, 1, 15, 23, 2, 30, 0, time.UTC),
+			// delay propagated from s2
+			Time:  time.Date(2020, 1, 15, 23, 2, 30, 0, time.UTC),
+			Delay: 30 * time.Second,
 		},
 		{
 			RouteID:      "R1",
 			TripID:       "t2",
 			StopID:       "s3",
 			StopSequence: 3,
-			// and t2 remain on schedule due to NO_DATA at s2
+			// and t2 remains on schedule due to NO_DATA at s2
 			Time: time.Date(2020, 1, 15, 23, 12, 0, 0, time.UTC),
 		},
 	}, departures)
@@ -552,6 +557,7 @@ func TestRealtimeSkippedStop(t *testing.T) {
 			StopID:       "s1",
 			StopSequence: 1,
 			Time:         time.Date(2020, 1, 15, 23, 10, 30, 0, time.UTC),
+			Delay:        30 * time.Second,
 		},
 	}, departures)
 
@@ -578,6 +584,7 @@ func TestRealtimeSkippedStop(t *testing.T) {
 			StopID:       "s3",
 			StopSequence: 3,
 			Time:         time.Date(2020, 1, 15, 23, 12, 30, 0, time.UTC),
+			Delay:        30 * time.Second,
 		},
 	}, departures)
 }
@@ -627,6 +634,7 @@ func TestRealtimeCanceledTrip(t *testing.T) {
 			StopID:       "s2",
 			StopSequence: 2,
 			Time:         time.Date(2020, 1, 15, 23, 11, 30, 0, time.UTC),
+			Delay:        30 * time.Second,
 		},
 	}, departures)
 
@@ -639,6 +647,7 @@ func TestRealtimeCanceledTrip(t *testing.T) {
 			StopID:       "s3",
 			StopSequence: 3,
 			Time:         time.Date(2020, 1, 15, 23, 12, 30, 0, time.UTC),
+			Delay:        30 * time.Second,
 		},
 	}, departures)
 
@@ -745,6 +754,7 @@ func TestRealtimeTimeWindowing(t *testing.T) {
 			StopID:       "s2",
 			StopSequence: 2,
 			Time:         time.Date(2020, 1, 15, 23, 1, 30, 0, time.UTC),
+			Delay:        30 * time.Second,
 		},
 	}, departures)
 
@@ -763,6 +773,7 @@ func TestRealtimeTimeWindowing(t *testing.T) {
 			StopID:       "s2",
 			StopSequence: 2,
 			Time:         time.Date(2020, 1, 15, 23, 1, 30, 0, time.UTC),
+			Delay:        30 * time.Second,
 		},
 		{
 			RouteID:      "R1",
@@ -770,6 +781,7 @@ func TestRealtimeTimeWindowing(t *testing.T) {
 			StopID:       "s2",
 			StopSequence: 2,
 			Time:         time.Date(2020, 1, 15, 23, 13, 0, 0, time.UTC),
+			Delay:        120 * time.Second,
 		},
 	}, departures)
 
@@ -788,6 +800,7 @@ func TestRealtimeTimeWindowing(t *testing.T) {
 			StopID:       "s2",
 			StopSequence: 2,
 			Time:         time.Date(2020, 1, 15, 23, 13, 0, 0, time.UTC),
+			Delay:        120 * time.Second,
 		},
 	}, departures)
 }
@@ -907,6 +920,7 @@ func TestRealtimeTripWithLoop(t *testing.T) {
 			StopID:       "s3",
 			StopSequence: 6,
 			Time:         time.Date(2020, 1, 15, 23, 5, 30, 0, time.UTC),
+			Delay:        30 * time.Second,
 		},
 		{
 			RouteID:      "R1",
@@ -914,6 +928,7 @@ func TestRealtimeTripWithLoop(t *testing.T) {
 			StopID:       "s3",
 			StopSequence: 9,
 			Time:         time.Date(2020, 1, 15, 23, 8, 30, 0, time.UTC),
+			Delay:        30 * time.Second,
 		},
 	}, departures)
 
@@ -933,6 +948,7 @@ func TestRealtimeTripWithLoop(t *testing.T) {
 			StopID:       "s4",
 			StopSequence: 7,
 			Time:         time.Date(2020, 1, 15, 23, 6, 30, 0, time.UTC),
+			Delay:        30 * time.Second,
 		},
 		{
 			RouteID:      "R1",
@@ -940,6 +956,7 @@ func TestRealtimeTripWithLoop(t *testing.T) {
 			StopID:       "s4",
 			StopSequence: 10,
 			Time:         time.Date(2020, 1, 15, 23, 9, 30, 0, time.UTC),
+			Delay:        30 * time.Second,
 		},
 	}, departures)
 
@@ -952,6 +969,7 @@ func TestRealtimeTripWithLoop(t *testing.T) {
 			StopID:       "s5",
 			StopSequence: 5,
 			Time:         time.Date(2020, 1, 15, 23, 4, 30, 0, time.UTC),
+			Delay:        30 * time.Second,
 		},
 		{
 			RouteID:      "R1",
@@ -1051,6 +1069,7 @@ func TestRealtimeDepartureFiltering(t *testing.T) {
 			StopID:       "center",
 			StopSequence: 1,
 			Time:         time.Date(2020, 1, 16, 1, 0, 1, 0, time.UTC),
+			Delay:        1 * time.Second,
 		},
 		{
 			RouteID:      "RailEast",
@@ -1075,6 +1094,7 @@ func TestRealtimeDepartureFiltering(t *testing.T) {
 			StopID:       "center",
 			StopSequence: 1,
 			Time:         time.Date(2020, 1, 16, 1, 0, 1, 0, time.UTC),
+			Delay:        1 * time.Second,
 		},
 	}, departures)
 
@@ -1107,6 +1127,7 @@ func TestRealtimeDepartureFiltering(t *testing.T) {
 			StopID:       "center",
 			StopSequence: 1,
 			Time:         time.Date(2020, 1, 16, 1, 0, 1, 0, time.UTC),
+			Delay:        1 * time.Second,
 		},
 	}, departures)
 
@@ -1124,6 +1145,7 @@ func TestRealtimeDepartureFiltering(t *testing.T) {
 			StopID:       "center",
 			StopSequence: 1,
 			Time:         time.Date(2020, 1, 16, 1, 0, 1, 0, time.UTC),
+			Delay:        1 * time.Second,
 		},
 	}, departures)
 	departures, err = rt.Departures(
@@ -1148,6 +1170,7 @@ func TestRealtimeDepartureFiltering(t *testing.T) {
 			StopID:       "center",
 			StopSequence: 1,
 			Time:         time.Date(2020, 1, 16, 1, 0, 1, 0, time.UTC),
+			Delay:        1 * time.Second,
 		},
 	}, departures)
 	departures, err = rt.Departures(
@@ -1342,6 +1365,7 @@ func TestRealtimeArrivalRecovery(t *testing.T) {
 			StopID:       "s1",
 			StopSequence: 1,
 			Time:         time.Date(2020, 1, 15, 23, 0, 30, 0, time.UTC),
+			Delay:        30 * time.Second,
 		},
 		{
 			RouteID:      "R1",
@@ -1349,6 +1373,7 @@ func TestRealtimeArrivalRecovery(t *testing.T) {
 			StopID:       "s1",
 			StopSequence: 1,
 			Time:         time.Date(2020, 1, 15, 23, 10, 30, 0, time.UTC),
+			Delay:        30 * time.Second,
 		},
 	}, departures)
 
@@ -1361,6 +1386,7 @@ func TestRealtimeArrivalRecovery(t *testing.T) {
 			StopID:       "z1",
 			StopSequence: 1,
 			Time:         time.Date(2020, 1, 15, 23, 5, 30, 0, time.UTC),
+			Delay:        30 * time.Second,
 		},
 	}, departures)
 
