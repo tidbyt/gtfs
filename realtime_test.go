@@ -121,8 +121,8 @@ func buildFeed(t *testing.T, tripUpdates []TripUpdate) [][]byte {
 
 // A simple Static fixture. Trips t1 and t2 cover the same three
 // stops s1-s3. Trip t3 covers z1-z2. Full service all days of 2020.
-func SimpleStaticFixture(t *testing.T) (*gtfs.Static, storage.FeedReader) {
-	static, reader := GTFSTest_BuildStatic(t, "memory", map[string][]string{
+func SimpleStaticFixture(t *testing.T) *gtfs.Static {
+	static := GTFSTest_BuildStatic(t, "memory", map[string][]string{
 		"calendar.txt": {
 			"service_id,start_date,end_date,monday,tuesday,wednesday,thursday,friday,saturday,sunday",
 			"everyday,20200101,20210101,1,1,1,1,1,1,1",
@@ -164,7 +164,7 @@ func SimpleStaticFixture(t *testing.T) (*gtfs.Static, storage.FeedReader) {
 		},
 	})
 
-	return static, reader
+	return static
 }
 
 // Test realtime data where updates all have 0 delay.
@@ -190,9 +190,10 @@ func TestRealtimeNoChanges(t *testing.T) {
 			},
 		},
 	})
-	static, reader := SimpleStaticFixture(t)
-	rt, err := gtfs.NewRealtime(context.Background(), static, reader, feed)
+	static := SimpleStaticFixture(t)
+	rt, err := gtfs.NewRealtime(context.Background(), static, feed)
 	require.NoError(t, err)
+	assert.Equal(t, uint64(time.Date(2020, 1, 15, 23, 0, 0, 0, time.UTC).Unix()), rt.Timestamp)
 
 	// Check s1
 	departures, err := rt.Departures("s1", time.Date(2020, 1, 15, 23, 0, 0, 0, time.UTC), 10*time.Minute, -1, "", -1, nil)
@@ -311,8 +312,8 @@ func TestRealtimeDelayWithPropagation(t *testing.T) {
 			},
 		},
 	})
-	static, reader := SimpleStaticFixture(t)
-	rt, err := gtfs.NewRealtime(context.Background(), static, reader, feed)
+	static := SimpleStaticFixture(t)
+	rt, err := gtfs.NewRealtime(context.Background(), static, feed)
 	require.NoError(t, err)
 
 	// Check s1
@@ -430,8 +431,8 @@ func TestRealtimeNoData(t *testing.T) {
 			},
 		},
 	})
-	static, reader := SimpleStaticFixture(t)
-	rt, err := gtfs.NewRealtime(context.Background(), static, reader, feed)
+	static := SimpleStaticFixture(t)
+	rt, err := gtfs.NewRealtime(context.Background(), static, feed)
 	require.NoError(t, err)
 
 	// Check s1
@@ -537,8 +538,8 @@ func TestRealtimeSkippedStop(t *testing.T) {
 			},
 		},
 	})
-	static, reader := SimpleStaticFixture(t)
-	rt, err := gtfs.NewRealtime(context.Background(), static, reader, feed)
+	static := SimpleStaticFixture(t)
+	rt, err := gtfs.NewRealtime(context.Background(), static, feed)
 	require.NoError(t, err)
 
 	// Check s1. Expect t1 to skip past. t2 is delayed 30s.
@@ -601,8 +602,8 @@ func TestRealtimeCanceledTrip(t *testing.T) {
 			},
 		},
 	})
-	static, reader := SimpleStaticFixture(t)
-	rt, err := gtfs.NewRealtime(context.Background(), static, reader, feed)
+	static := SimpleStaticFixture(t)
+	rt, err := gtfs.NewRealtime(context.Background(), static, feed)
 	require.NoError(t, err)
 
 	departures, err := rt.Departures("s1", time.Date(2020, 1, 15, 23, 0, 0, 0, time.UTC), 10*time.Minute, -1, "", -1, nil)
@@ -668,7 +669,7 @@ func TestRealtimeCanceledTrip(t *testing.T) {
 			Canceled: true,
 		},
 	})
-	rt, err = gtfs.NewRealtime(context.Background(), static, reader, feed)
+	rt, err = gtfs.NewRealtime(context.Background(), static, feed)
 	require.NoError(t, err)
 
 	departures, err = rt.Departures("s1", time.Date(2020, 1, 15, 23, 0, 0, 0, time.UTC), 20*time.Minute, -1, "", -1, nil)
@@ -718,8 +719,8 @@ func TestRealtimeTimeWindowing(t *testing.T) {
 			},
 		},
 	})
-	static, reader := SimpleStaticFixture(t)
-	rt, err := gtfs.NewRealtime(context.Background(), static, reader, feed)
+	static := SimpleStaticFixture(t)
+	rt, err := gtfs.NewRealtime(context.Background(), static, feed)
 	require.NoError(t, err)
 
 	// This should produce the following schedule for t1 and t2:
@@ -797,7 +798,7 @@ func TestRealtimeTimeWindowing(t *testing.T) {
 func TestRealtimeTripWithLoop(t *testing.T) {
 	// This static schedule has t1 running from s1 to s2, and then
 	// 3 loops s3-s5, and finally end of the trip at s3.
-	static, reader := GTFSTest_BuildStatic(t, "memory", map[string][]string{
+	static := GTFSTest_BuildStatic(t, "memory", map[string][]string{
 		// A weekdays only schedule
 		"calendar.txt": {
 			"service_id,start_date,end_date,monday,tuesday,wednesday,thursday,friday,saturday,sunday",
@@ -863,7 +864,7 @@ func TestRealtimeTripWithLoop(t *testing.T) {
 			},
 		},
 	})
-	rt, err := gtfs.NewRealtime(context.Background(), static, reader, feed)
+	rt, err := gtfs.NewRealtime(context.Background(), static, feed)
 	require.NoError(t, err)
 
 	departures, err := rt.Departures("s1", time.Date(2020, 1, 15, 23, 0, 0, 0, time.UTC), 10*time.Minute, -1, "", -1, nil)
@@ -967,7 +968,7 @@ func TestRealtimeDepartureFiltering(t *testing.T) {
 	// Two routes: bus going center to south and rail going center
 	// to east. Each route has two trips: one heading out, one
 	// heading in.
-	static, reader := GTFSTest_BuildStatic(t, "memory", map[string][]string{
+	static := GTFSTest_BuildStatic(t, "memory", map[string][]string{
 		// A weekdays only schedule
 		"calendar.txt": {
 			"service_id,start_date,end_date,monday,tuesday,wednesday,thursday,friday,saturday,sunday",
@@ -1033,7 +1034,7 @@ func TestRealtimeDepartureFiltering(t *testing.T) {
 			},
 		},
 	})
-	rt, err := gtfs.NewRealtime(context.Background(), static, reader, feed)
+	rt, err := gtfs.NewRealtime(context.Background(), static, feed)
 	require.NoError(t, err)
 
 	// From center we have 2 departures on separate routes
@@ -1175,7 +1176,7 @@ func TestRealtimeDepartureFiltering(t *testing.T) {
 }
 
 func TestRealtimeLoadError(t *testing.T) {
-	static, reader := SimpleStaticFixture(t)
+	static := SimpleStaticFixture(t)
 
 	// This one's fine
 	incrementality := p.FeedHeader_FULL_DATASET
@@ -1187,7 +1188,7 @@ func TestRealtimeLoadError(t *testing.T) {
 		},
 	})
 	require.NoError(t, err)
-	_, err = gtfs.NewRealtime(context.Background(), static, reader, [][]byte{data})
+	_, err = gtfs.NewRealtime(context.Background(), static, [][]byte{data})
 	assert.NoError(t, err)
 
 	// This one is not (bad version)
@@ -1199,7 +1200,7 @@ func TestRealtimeLoadError(t *testing.T) {
 		},
 	})
 	require.NoError(t, err)
-	_, err = gtfs.NewRealtime(context.Background(), static, reader, [][]byte{data})
+	_, err = gtfs.NewRealtime(context.Background(), static, [][]byte{data})
 	assert.Error(t, err)
 }
 
@@ -1226,8 +1227,8 @@ func TestRealtimeUpdatePushingDepartureIntoWindow(t *testing.T) {
 			},
 		},
 	})
-	static, reader := SimpleStaticFixture(t)
-	rt, err := gtfs.NewRealtime(context.Background(), static, reader, feed)
+	static := SimpleStaticFixture(t)
+	rt, err := gtfs.NewRealtime(context.Background(), static, feed)
 	require.NoError(t, err)
 
 	// stop s1 is early, and can be found around 22:00
@@ -1327,8 +1328,8 @@ func TestRealtimeArrivalRecovery(t *testing.T) {
 			},
 		},
 	})
-	static, reader := SimpleStaticFixture(t)
-	rt, err := gtfs.NewRealtime(context.Background(), static, reader, feed)
+	static := SimpleStaticFixture(t)
+	rt, err := gtfs.NewRealtime(context.Background(), static, feed)
 	require.NoError(t, err)
 
 	// Check the delays on the first stop
@@ -1419,7 +1420,7 @@ func TestRealtimeArrivalRecovery(t *testing.T) {
 
 func TestRealtimeDelayCrossingMidnight(t *testing.T) {
 	// A single trip passing through s1...s4 over midnight.
-	static, reader := GTFSTest_BuildStatic(t, "memory", map[string][]string{
+	static := GTFSTest_BuildStatic(t, "memory", map[string][]string{
 		"calendar.txt": {
 			"service_id,start_date,end_date,monday,tuesday,wednesday,thursday,friday,saturday,sunday",
 			"everyday,20200101,20210101,1,1,1,1,1,1,1",
@@ -1532,7 +1533,7 @@ func TestRealtimeDelayCrossingMidnight(t *testing.T) {
 				StopUpdates: []StopUpdate{tc.StopUpdate},
 			},
 		})
-		rt, err := gtfs.NewRealtime(context.Background(), static, reader, feed)
+		rt, err := gtfs.NewRealtime(context.Background(), static, feed)
 		require.NoError(t, err)
 
 		departures, err := rt.Departures(
@@ -1549,7 +1550,7 @@ func TestRealtimeDelayCrossingMidnight(t *testing.T) {
 
 func TestRealtimeDelayCrossingDSTBoundaryOnCurrentDay(t *testing.T) {
 	// Delays on trips crossing a DST boundary
-	static, reader := GTFSTest_BuildStatic(t, "memory", map[string][]string{
+	static := GTFSTest_BuildStatic(t, "memory", map[string][]string{
 		"agency.txt": {
 			"agency_id,agency_name,agency_url,agency_timezone",
 			"a,A,http://a.com/,America/New_York",
@@ -1768,7 +1769,7 @@ func TestRealtimeDelayCrossingDSTBoundaryOnCurrentDay(t *testing.T) {
 				StopUpdates: []StopUpdate{tc.StopUpdate},
 			},
 		})
-		rt, err := gtfs.NewRealtime(context.Background(), static, reader, feed)
+		rt, err := gtfs.NewRealtime(context.Background(), static, feed)
 		require.NoError(t, err)
 
 		expTime := parseT(t, tc.ExpectedDepartureTime)
@@ -1787,7 +1788,7 @@ func TestRealtimeDelayCrossingDSTBoundaryOnCurrentDay(t *testing.T) {
 func TestRealtimeDelayCrossingDSTBoundaryFromPreviousDay(t *testing.T) {
 	// Delays on trips crossing a DST boundary on the _following
 	// day_ (via scheduled trips running past 24:00).
-	static, reader := GTFSTest_BuildStatic(t, "memory", map[string][]string{
+	static := GTFSTest_BuildStatic(t, "memory", map[string][]string{
 		"agency.txt": {
 			"agency_id,agency_name,agency_url,agency_timezone",
 			"a,A,http://a.com/,America/New_York",
@@ -1984,7 +1985,7 @@ func TestRealtimeDelayCrossingDSTBoundaryFromPreviousDay(t *testing.T) {
 				StopUpdates: []StopUpdate{tc.StopUpdate},
 			},
 		})
-		rt, err := gtfs.NewRealtime(context.Background(), static, reader, feed)
+		rt, err := gtfs.NewRealtime(context.Background(), static, feed)
 		require.NoError(t, err)
 
 		departures, err := rt.Departures(

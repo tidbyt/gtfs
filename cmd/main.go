@@ -19,12 +19,13 @@ var rootCmd = &cobra.Command{
 }
 
 var (
-	feedURL string
+	staticURL   string
+	realtimeURL string
 )
 
 func init() {
-	rootCmd.PersistentFlags().StringVarP(&feedURL, "url", "u", "", "GTFS feed URL")
-	rootCmd.MarkFlagRequired("url")
+	rootCmd.PersistentFlags().StringVarP(&staticURL, "static", "", "", "GTFS Static URL")
+	rootCmd.PersistentFlags().StringVarP(&realtimeURL, "realtime", "", "", "GTFS Realtime URL")
 	rootCmd.AddCommand(departuresCmd)
 }
 
@@ -35,17 +36,43 @@ func main() {
 	}
 }
 
-func LoadStaticFeed(url string) (*gtfs.Static, error) {
+func LoadStaticFeed() (*gtfs.Static, error) {
+	if staticURL == "" {
+		return nil, fmt.Errorf("static URL is required")
+	}
+
 	s, err := storage.NewSQLiteStorage(storage.SQLiteConfig{OnDisk: true, Directory: "."})
 	if err != nil {
 		return nil, err
 	}
 	manager := gtfs.NewManager(s)
 
-	static, err := manager.LoadStatic(url, time.Now())
+	static, err := manager.LoadStatic(staticURL, time.Now())
 	if err != nil {
 		return nil, err
 	}
 
 	return static, nil
+}
+
+func LoadRealtimeFeed() (*gtfs.Realtime, error) {
+	if realtimeURL == "" {
+		return nil, fmt.Errorf("realtime URL is required")
+	}
+	if staticURL == "" {
+		return nil, fmt.Errorf("static URL is required")
+	}
+
+	s, err := storage.NewSQLiteStorage(storage.SQLiteConfig{OnDisk: true, Directory: "."})
+	if err != nil {
+		return nil, err
+	}
+	manager := gtfs.NewManager(s)
+
+	realtime, err := manager.LoadRealtime(staticURL, nil, realtimeURL, nil, time.Now())
+	if err != nil {
+		return nil, err
+	}
+
+	return realtime, nil
 }

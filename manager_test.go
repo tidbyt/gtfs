@@ -11,9 +11,12 @@ import (
 	"testing"
 	"time"
 
+	p "github.com/MobilityData/gtfs-realtime-bindings/golang/gtfs"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	proto "google.golang.org/protobuf/proto"
 
+	"tidbyt.dev/gtfs/downloader"
 	"tidbyt.dev/gtfs/storage"
 )
 
@@ -76,6 +79,39 @@ func validFeed() map[string][]string {
 	}
 }
 
+func validRealtimeFeed(t *testing.T, timestamp time.Time) []byte {
+	incrementality := p.FeedHeader_FULL_DATASET
+	tripScheduleRelationship := p.TripDescriptor_SCHEDULED
+	data, err := proto.Marshal(&p.FeedMessage{
+		Header: &p.FeedHeader{
+			GtfsRealtimeVersion: proto.String("2.0"),
+			Incrementality:      &incrementality,
+			Timestamp:           proto.Uint64(uint64(timestamp.Unix())),
+		},
+		Entity: []*p.FeedEntity{
+			{
+				Id: proto.String("t"),
+				TripUpdate: &p.TripUpdate{
+					Trip: &p.TripDescriptor{
+						TripId:               proto.String("t"),
+						ScheduleRelationship: &tripScheduleRelationship,
+					},
+					StopTimeUpdate: []*p.TripUpdate_StopTimeUpdate{
+						{
+							StopId: proto.String("s"),
+							Arrival: &p.TripUpdate_StopTimeEvent{
+								Delay: proto.Int32(12),
+							},
+						},
+					},
+				},
+			},
+		},
+	})
+	require.NoError(t, err)
+	return data
+}
+
 func buildZip(t *testing.T, files map[string][]string) []byte {
 	buf := &bytes.Buffer{}
 	w := zip.NewWriter(buf)
@@ -96,8 +132,7 @@ func TestManagerLoadSingleFeed(t *testing.T) {
 
 	server.Feeds["/static.zip"] = buildZip(t, validFeed())
 
-	storage := storage.NewMemoryStorage()
-	m := NewManager(storage)
+	m := NewManager(storage.NewMemoryStorage())
 
 	when := time.Date(2019, 2, 1, 0, 0, 0, 0, time.UTC)
 
@@ -131,8 +166,7 @@ func TestManagerLoadMultipleURLs(t *testing.T) {
 
 	// Both feeds can be loaded
 	when := time.Date(2019, 2, 1, 0, 0, 0, 0, time.UTC)
-	storage := storage.NewMemoryStorage()
-	m := NewManager(storage)
+	m := NewManager(storage.NewMemoryStorage())
 	s1, err := m.LoadStatic(server.Server.URL+"/static1.zip", when)
 	require.NoError(t, err)
 	s2, err := m.LoadStatic(server.Server.URL+"/static2.zip", when)
@@ -390,6 +424,88 @@ func TestManagerAsyncLoad(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 1, len(stops))
 	assert.Equal(t, "s", stops[0].ID)
+}
+
+func TestManagerLoadRealtime(t *testing.T) {
+	server := managerFixture()
+	defer server.Server.Close()
+
+	server.Feeds["/static.zip"] = buildZip(t, validFeed())
+	server.Feeds["/realtime.pb"] = validRealtimeFeed(t, time.Unix(12345, 0))
+
+	s, err := storage.NewSQLiteStorage()
+	require.NoError(t, err)
+	m := NewManager(s)
+
+	when := time.Date(2019, 2, 1, 0, 0, 0, 0, time.UTC)
+
+	// Mock clock on the downloader to control caching
+	now := time.Now()
+	dl := downloader.NewMemoryDownloader()
+	dl.TimeNow = func() time.Time {
+		return now
+	}
+	m.Downloader = dl
+
+	// Realtime feed can be loaded
+	realtime, err := m.LoadRealtime(
+		server.Server.URL+"/static.zip", nil,
+		server.Server.URL+"/realtime.pb", nil,
+		when,
+	)
+	require.NoError(t, err)
+	assert.Equal(t, uint64(12345), realtime.Timestamp)
+
+	// New realtime feed
+	server.Feeds["/realtime.pb"] = validRealtimeFeed(t, time.Unix(12346, 0))
+
+	// Old is still served from cache
+	realtime, err = m.LoadRealtime(
+		server.Server.URL+"/static.zip", nil,
+		server.Server.URL+"/realtime.pb", nil,
+		when,
+	)
+	require.NoError(t, err)
+	assert.Equal(t, uint64(12345), realtime.Timestamp)
+
+	// Fast forward time to invalidate cached feed, and the new
+	// will be retrieved
+	now = now.Add(3 * time.Minute)
+	realtime, err = m.LoadRealtime(
+		server.Server.URL+"/static.zip", nil,
+		server.Server.URL+"/realtime.pb", nil,
+		when,
+	)
+	require.NoError(t, err)
+	assert.Equal(t, uint64(12346), realtime.Timestamp)
+
+	// Bad data results in error
+	server.Feeds["/bad.pb"] = []byte("this isn't protobuf")
+	_, err = m.LoadRealtime(
+		server.Server.URL+"/static.zip", nil,
+		server.Server.URL+"/bad.pb", nil,
+		when,
+	)
+	assert.Error(t, err, "umarshaling protobuf")
+
+	// Missing data is also error
+	_, err = m.LoadRealtime(
+		server.Server.URL+"/static.zip", nil,
+		server.Server.URL+"/missing.pb", nil,
+		when,
+	)
+	assert.ErrorContains(t, err, "404")
+
+	// 404 isn't cached
+	server.Feeds["/missing.pb"] = validRealtimeFeed(t, time.Unix(12348, 0))
+	realtime, err = m.LoadRealtime(
+		server.Server.URL+"/static.zip", nil,
+		server.Server.URL+"/missing.pb", nil,
+		when,
+	)
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(12348), realtime.Timestamp)
+
 }
 
 // Verifies that Manager respects agency timezone when determining if

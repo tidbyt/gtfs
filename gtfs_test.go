@@ -41,7 +41,7 @@ func GFSTest_BuildStorage(t testing.TB, backend string) storage.Storage {
 	return s
 }
 
-func GTFSTest_LoadStatic(t testing.TB, backend string, buf *bytes.Buffer) (*gtfs.Static, storage.FeedReader) {
+func GTFSTest_LoadStatic(t testing.TB, backend string, buf *bytes.Buffer) *gtfs.Static {
 	s := GFSTest_BuildStorage(t, backend)
 
 	// Parse buf into storage
@@ -60,10 +60,10 @@ func GTFSTest_LoadStatic(t testing.TB, backend string, buf *bytes.Buffer) (*gtfs
 	static, err := gtfs.NewStatic(reader, metadata)
 	require.NoError(t, err)
 
-	return static, reader
+	return static
 }
 
-func GTFSTest_LoadStaticFile(t testing.TB, backend string, filename string) (*gtfs.Static, storage.FeedReader) {
+func GTFSTest_LoadStaticFile(t testing.TB, backend string, filename string) *gtfs.Static {
 	buf, err := ioutil.ReadFile(filename)
 	require.NoError(t, err)
 
@@ -74,7 +74,7 @@ func GTFSTest_BuildStatic(
 	t testing.TB,
 	backend string,
 	files map[string][]string,
-) (*gtfs.Static, storage.FeedReader) {
+) *gtfs.Static {
 
 	// Fill in missing files with (mostly blank) dummy data.
 	if files["agency.txt"] == nil {

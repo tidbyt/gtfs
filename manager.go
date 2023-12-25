@@ -10,28 +10,49 @@ import (
 	"sort"
 	"time"
 
+	"tidbyt.dev/gtfs/downloader"
 	"tidbyt.dev/gtfs/parse"
 	"tidbyt.dev/gtfs/storage"
 )
 
-const DefaultStaticRefreshInterval = 12 * time.Hour
+const (
+	DefaultStaticRefreshInterval = 12 * time.Hour
+	DefaultRealtimeTTL           = 1 * time.Minute
+	DefaultRealtimeTimeout       = 30 * time.Second
+	DefaultRealtimeMaxSize       = 1 << 20 // 1 MB
+)
 
 var ErrNoActiveFeed = errors.New("no active feed found")
 
 // Manager manages GTFS data.
 type Manager struct {
 	RefreshInterval time.Duration
+	RealtimeTTL     time.Duration
+	RealtimeTimeout time.Duration
+	RealtimeMaxSize int
+	Downloader      downloader.Downloader
 	storage         storage.Storage
 }
 
+// Creates a new Manager of GTFS data, on top of the given storage.
+//
+// By default, the manager will use a an in memory cache for realtime
+// data, but not for static schedules as these will be persisted in
+// storage.
 func NewManager(storage storage.Storage) *Manager {
 	return &Manager{
-		storage:         storage,
 		RefreshInterval: DefaultStaticRefreshInterval,
+		RealtimeTTL:     DefaultRealtimeTTL,
+		RealtimeTimeout: DefaultRealtimeTimeout,
+		RealtimeMaxSize: DefaultRealtimeMaxSize,
+
+		Downloader: downloader.NewMemoryDownloader(),
+
+		storage: storage,
 	}
 }
 
-// Loads GTFS data from a URL
+// Loads static GTFS data from a URL
 //
 // If a feed is available in storage, and active at the given time, it
 // is returned immediately. Otherwise, ErrNoActiveFeed is returned.
@@ -60,7 +81,7 @@ func (m *Manager) LoadStaticAsync(url string, when time.Time) (*Static, error) {
 	return m.loadMostRecentActive(feeds, when)
 }
 
-// Loads GTFS data from a URL
+// Loads static GTFS data from a URL
 //
 // If the URL is previously unseen, it is retrieved immediately.
 //
@@ -94,6 +115,43 @@ func (m *Manager) LoadStatic(url string, when time.Time) (*Static, error) {
 	}
 
 	return m.loadMostRecentActive(feeds, when)
+}
+
+// Loads realtime GTFS data from a static and realtime feed.
+func (m *Manager) LoadRealtime(
+	staticURL string,
+	staticHeaders map[string]string,
+	realtimeURL string,
+	realtimeHeaders map[string]string,
+	when time.Time,
+) (*Realtime, error) {
+
+	static, err := m.LoadStatic(staticURL, when)
+	if err != nil {
+		return nil, fmt.Errorf("loading static: %w", err)
+	}
+
+	feedData, err := m.Downloader.Get(
+		context.Background(),
+		realtimeURL,
+		realtimeHeaders,
+		downloader.GetOptions{
+			Cache:    true,
+			CacheTTL: m.RealtimeTTL,
+		},
+	)
+	if err != nil {
+		return nil, fmt.Errorf("downloading realtime: %w", err)
+	}
+
+	fmt.Println("got", len(feedData), "bytes of realtime data")
+
+	realtime, err := NewRealtime(context.Background(), static, [][]byte{feedData})
+	if err != nil {
+		return nil, fmt.Errorf("creating realtime: %w", err)
+	}
+
+	return realtime, nil
 }
 
 // Refreshes any feeds that might need refreshing.

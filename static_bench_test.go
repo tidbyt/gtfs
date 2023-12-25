@@ -6,7 +6,7 @@ import (
 )
 
 func benchNearbyStops(b *testing.B, backend string) {
-	static, _ := GTFSTest_LoadStaticFile(b, backend, "testdata/caltrain_20160406.zip")
+	static := GTFSTest_LoadStaticFile(b, backend, "testdata/caltrain_20160406.zip")
 
 	b.ResetTimer()
 
@@ -20,7 +20,7 @@ func benchNearbyStops(b *testing.B, backend string) {
 }
 
 func benchDepartures(b *testing.B, backend string) {
-	static, _ := GTFSTest_LoadStaticFile(b, backend, "testdata/caltrain_20160406.zip")
+	static := GTFSTest_LoadStaticFile(b, backend, "testdata/caltrain_20160406.zip")
 
 	tz, err := time.LoadLocation("America/Los_Angeles")
 	if err != nil {

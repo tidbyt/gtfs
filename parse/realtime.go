@@ -32,6 +32,9 @@ type StopTimeUpdate struct {
 
 // Contains key data from a GTFS Realtime feed
 type Realtime struct {
+	// Timestamp of the feed. If loaded from multiple feeds, the
+	// last one wins.
+	Timestamp    uint64
 	SkippedTrips map[string]bool
 	Updates      []*StopTimeUpdate
 
@@ -57,7 +60,7 @@ func ParseRealtime(ctx context.Context, feeds [][]byte) (*Realtime, error) {
 			return nil, fmt.Errorf("unmarshaling protobuf: %w", err)
 		}
 
-		// Validate header
+		// Header
 		header := f.GetHeader()
 
 		version := header.GetGtfsRealtimeVersion()
@@ -68,6 +71,8 @@ func ParseRealtime(ctx context.Context, feeds [][]byte) (*Realtime, error) {
 		if header.GetIncrementality() != gtfsproto.FeedHeader_FULL_DATASET {
 			return nil, fmt.Errorf("feed incrementality %s not supported", header.GetIncrementality())
 		}
+
+		rt.Timestamp = header.GetTimestamp()
 
 		// Process the feed entities
 		err = processEntities(ctx, rt, f.GetEntity())
