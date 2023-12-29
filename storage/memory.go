@@ -13,15 +13,22 @@ type memoryMetadataKey struct {
 	SHA256 string
 }
 
+type memoryRequestKey struct {
+	URL      string
+	Consumer string
+}
+
 type MemoryStorage struct {
 	Feeds    map[string]*MemoryStorageFeed
 	Metadata map[memoryMetadataKey]*FeedMetadata
+	Requests map[memoryRequestKey]FeedRequest
 }
 
 func NewMemoryStorage() *MemoryStorage {
 	return &MemoryStorage{
 		Feeds:    map[string]*MemoryStorageFeed{},
 		Metadata: map[memoryMetadataKey]*FeedMetadata{},
+		Requests: map[memoryRequestKey]FeedRequest{},
 	}
 }
 
@@ -42,8 +49,26 @@ func (s *MemoryStorage) ListFeeds(filter ListFeedsFilter) ([]*FeedMetadata, erro
 	return feeds, nil
 }
 
+func (s *MemoryStorage) ListFeedRequests(url string) ([]FeedRequest, error) {
+	reqs := []FeedRequest{}
+
+	for _, req := range s.Requests {
+		if url != "" && req.URL != url {
+			continue
+		}
+		reqs = append(reqs, req)
+	}
+
+	return reqs, nil
+}
+
 func (s *MemoryStorage) WriteFeedMetadata(feed *FeedMetadata) error {
 	s.Metadata[memoryMetadataKey{feed.URL, feed.SHA256}] = feed
+	return nil
+}
+
+func (s *MemoryStorage) WriteFeedRequest(req FeedRequest) error {
+	s.Requests[memoryRequestKey{req.URL, req.Consumer}] = req
 	return nil
 }
 

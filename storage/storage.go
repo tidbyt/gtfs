@@ -4,12 +4,20 @@ import (
 	"time"
 )
 
+// TODO:
+// - Remove UpdatedAt from FeedMetadata
+// - s/sha256/hash/
+// - s/FeedMetadata/Feed/
+// - Remove FeedStartDate/FeedEndDate
+
 type Storage interface {
 	ListFeeds(filter ListFeedsFilter) ([]*FeedMetadata, error)
 	GetReader(feed string) (FeedReader, error)
 	GetWriter(feed string) (FeedWriter, error)
 	WriteFeedMetadata(metadata *FeedMetadata) error
 	DeleteFeedMetadata(url string, sha256 string) error
+	ListFeedRequests(url string) ([]FeedRequest, error)
+	WriteFeedRequest(req FeedRequest) error
 }
 
 type ListFeedsFilter struct {
@@ -17,6 +25,20 @@ type ListFeedsFilter struct {
 	SHA256 string
 }
 
+// A request for a static GTFS feed. Many consumers can request the
+// same URL, optionally with custom headers (typically containing API
+// key.) Regardless of the number of consumers, the feed is only
+// retrieved once.
+type FeedRequest struct {
+	Consumer  string
+	URL       string
+	Headers   string
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+// Metadata for a downloaded static GTFS feed. The parsed data can be
+// accessed via FeedReader.
 type FeedMetadata struct {
 	SHA256            string
 	URL               string

@@ -65,6 +65,14 @@ CREATE TABLE IF NOT EXISTS feed (
     max_arrival TEXT NOT NULL,
     max_departure TEXT NOT NULL,
 PRIMARY KEY (sha256, url)
+);
+
+CREATE TABLE IF NOT EXISTS feed_request (
+    consumer TEXT NOT NULL,
+    url TEXT NOT NULL,
+    headers TEXT NOT NULL,
+    created_at TIMESTAMP NOT NULL,
+PRIMARY KEY (consumer, url)
 );`)
 	if err != nil {
 		db.Close()
@@ -144,6 +152,45 @@ FROM feed`
 	return feeds, nil
 }
 
+func (s *SQLiteStorage) ListFeedRequests(url string) ([]FeedRequest, error) {
+	query := `
+SELECT
+    consumer,
+    url,
+    headers,
+    created_at
+FROM feed_request`
+
+	var rows *sql.Rows
+	var err error
+	if url != "" {
+		query += " WHERE url = ?"
+		rows, err = s.feedDB.Query(query, url)
+	} else {
+		rows, err = s.feedDB.Query(query)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("listing feed requests: %w", err)
+	}
+
+	var requests []FeedRequest
+	for rows.Next() {
+		var req FeedRequest
+		err := rows.Scan(
+			&req.Consumer,
+			&req.URL,
+			&req.Headers,
+			&req.CreatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("scanning feed request: %w", err)
+		}
+		requests = append(requests, req)
+	}
+
+	return requests, nil
+}
+
 func (s *SQLiteStorage) WriteFeedMetadata(feed *FeedMetadata) error {
 	_, err := s.feedDB.Exec(`
 INSERT INTO feed (
@@ -185,6 +232,30 @@ ON CONFLICT (sha256, url) DO UPDATE SET
 	)
 	if err != nil {
 		return fmt.Errorf("writing feed metadata: %w", err)
+	}
+	return nil
+}
+
+func (s *SQLiteStorage) WriteFeedRequest(req FeedRequest) error {
+	_, err := s.feedDB.Exec(`
+INSERT INTO feed_request (
+    consumer,
+    url,
+    headers,
+    created_at
+)
+VALUES (?, ?, ?, ?)
+ON CONFLICT (consumer, url) DO UPDATE SET
+    headers = excluded.headers,
+    created_at = excluded.created_at
+`,
+		req.Consumer,
+		req.URL,
+		req.Headers,
+		req.CreatedAt,
+	)
+	if err != nil {
+		return fmt.Errorf("writing feed request: %w", err)
 	}
 	return nil
 }

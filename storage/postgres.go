@@ -162,6 +162,10 @@ FROM feed`
 	return feeds, nil
 }
 
+func (s *PSQLStorage) ListFeedRequests(url string) ([]FeedRequest, error) {
+	return nil, fmt.Errorf("not implemented")
+}
+
 func (s *PSQLStorage) WriteFeedMetadata(feed *FeedMetadata) error {
 	_, err := s.db.Exec(`
 INSERT INTO feed (
@@ -205,6 +209,10 @@ ON CONFLICT (sha256, url) DO UPDATE SET
 		return fmt.Errorf("writing feed metadata: %w", err)
 	}
 	return nil
+}
+
+func (s *PSQLStorage) WriteFeedRequest(req FeedRequest) error {
+	return fmt.Errorf("not implemented")
 }
 
 func (s *PSQLStorage) DeleteFeedMetadata(url string, sha256 string) error {

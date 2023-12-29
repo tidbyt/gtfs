@@ -2033,6 +2033,121 @@ func testFeedOverwrite(t *testing.T, sb StorageBuilder) {
 	assert.Equal(t, "20190102", calendarDates[0].Date)
 }
 
+func testFeedRequest(t *testing.T, sb StorageBuilder) {
+	s, err := sb()
+	require.NoError(t, err)
+
+	// No requests at first
+	requests, err := s.ListFeedRequests("")
+	assert.NoError(t, err)
+	assert.Equal(t, 0, len(requests))
+	requests, err = s.ListFeedRequests("a-not-yet-added-url")
+	assert.NoError(t, err)
+	assert.Equal(t, 0, len(requests))
+
+	// Add 1 request for google, and 3 for microsoft
+	assert.NoError(t, s.WriteFeedRequest(storage.FeedRequest{
+		URL:       "https://google.com",
+		Consumer:  "mario",
+		Headers:   "mario-headers",
+		CreatedAt: time.Date(2019, 1, 1, 0, 0, 0, 0, time.UTC),
+	}))
+	assert.NoError(t, s.WriteFeedRequest(storage.FeedRequest{
+		URL:       "https://microsoft.com",
+		Consumer:  "luigi",
+		Headers:   "luigi-headers",
+		CreatedAt: time.Date(2019, 1, 3, 0, 0, 0, 0, time.UTC),
+	}))
+	assert.NoError(t, s.WriteFeedRequest(storage.FeedRequest{
+		URL:       "https://microsoft.com",
+		Consumer:  "peach",
+		Headers:   "peach-headers",
+		CreatedAt: time.Date(2019, 1, 5, 0, 0, 0, 0, time.UTC),
+	}))
+	assert.NoError(t, s.WriteFeedRequest(storage.FeedRequest{
+		URL:       "https://microsoft.com",
+		Consumer:  "bowser",
+		Headers:   "bowser-headers",
+		CreatedAt: time.Date(2019, 1, 7, 0, 0, 0, 0, time.UTC),
+	}))
+
+	// All requests are added
+	requests, err = s.ListFeedRequests("")
+	assert.NoError(t, err)
+	assert.Equal(t, 4, len(requests))
+	sort.Slice(requests, func(i, j int) bool {
+		return requests[i].Consumer < requests[j].Consumer
+	})
+	assert.Equal(t, storage.FeedRequest{
+		URL:       "https://microsoft.com",
+		Consumer:  "bowser",
+		Headers:   "bowser-headers",
+		CreatedAt: time.Date(2019, 1, 7, 0, 0, 0, 0, time.UTC),
+	}, requests[0])
+	assert.Equal(t, storage.FeedRequest{
+		URL:       "https://microsoft.com",
+		Consumer:  "luigi",
+		Headers:   "luigi-headers",
+		CreatedAt: time.Date(2019, 1, 3, 0, 0, 0, 0, time.UTC),
+	}, requests[1])
+
+	// And can be requested by URL
+	requests, err = s.ListFeedRequests("https://google.com")
+	assert.NoError(t, err)
+	assert.Equal(t, 1, len(requests))
+	assert.Equal(t, storage.FeedRequest{
+		URL:       "https://google.com",
+		Consumer:  "mario",
+		Headers:   "mario-headers",
+		CreatedAt: time.Date(2019, 1, 1, 0, 0, 0, 0, time.UTC),
+	}, requests[0])
+
+	requests, err = s.ListFeedRequests("https://microsoft.com")
+	assert.NoError(t, err)
+	assert.Equal(t, 3, len(requests))
+	sort.Slice(requests, func(i, j int) bool {
+		return requests[i].Consumer < requests[j].Consumer
+	})
+	assert.Equal(t, storage.FeedRequest{
+		URL:       "https://microsoft.com",
+		Consumer:  "bowser",
+		Headers:   "bowser-headers",
+		CreatedAt: time.Date(2019, 1, 7, 0, 0, 0, 0, time.UTC),
+	}, requests[0])
+	assert.Equal(t, storage.FeedRequest{
+		URL:       "https://microsoft.com",
+		Consumer:  "luigi",
+		Headers:   "luigi-headers",
+		CreatedAt: time.Date(2019, 1, 3, 0, 0, 0, 0, time.UTC),
+	}, requests[1])
+	assert.Equal(t, storage.FeedRequest{
+		URL:       "https://microsoft.com",
+		Consumer:  "peach",
+		Headers:   "peach-headers",
+		CreatedAt: time.Date(2019, 1, 5, 0, 0, 0, 0, time.UTC),
+	}, requests[2])
+
+	// Overwriting a request (same URL and consumer)
+	assert.NoError(t, s.WriteFeedRequest(storage.FeedRequest{
+		URL:       "https://microsoft.com",
+		Consumer:  "luigi",
+		Headers:   "luigi-headers-updated",
+		CreatedAt: time.Date(2019, 1, 3, 0, 0, 0, 0, time.UTC),
+	}))
+	requests, err = s.ListFeedRequests("https://microsoft.com")
+	assert.NoError(t, err)
+	assert.Equal(t, 3, len(requests))
+	sort.Slice(requests, func(i, j int) bool {
+		return requests[i].Consumer < requests[j].Consumer
+	})
+	assert.Equal(t, storage.FeedRequest{
+		URL:       "https://microsoft.com",
+		Consumer:  "luigi",
+		Headers:   "luigi-headers-updated",
+		CreatedAt: time.Date(2019, 1, 3, 0, 0, 0, 0, time.UTC),
+	}, requests[1])
+}
+
 func TestStorage(t *testing.T) {
 	for _, test := range []struct {
 		Name string
@@ -2060,6 +2175,7 @@ func TestStorage(t *testing.T) {
 		{"FeedMetadataFiltering", testFeedMetadataFiltering},
 		{"FeedMetadataDeletion", testFeedMetadataDeletion},
 		{"FeedOverwrite", testFeedOverwrite},
+		{"FeedRequest", testFeedRequest},
 	} {
 		t.Run(fmt.Sprintf("%s memory", test.Name), func(t *testing.T) {
 			test.Test(t, func() (storage.Storage, error) {
