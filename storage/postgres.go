@@ -994,10 +994,10 @@ Exceptions AS (
 Regular AS (
         SELECT service_id
         FROM calendar
-        WHERE hash = $3 AND
+        WHERE hash = $1 AND
               `+weekday+` = 1 AND
-              start_date <= $4 AND
-              end_date >= $5
+              start_date <= $2 AND
+              end_date >= $2
 )
 SELECT service_id FROM Regular
 WHERE service_id NOT IN (
@@ -1006,7 +1006,7 @@ WHERE service_id NOT IN (
 UNION
 SELECT service_id FROM Exceptions
 WHERE exception_type = 1
-`, r.id, date, r.id, date, date)
+`, r.id, date)
 	if err != nil {
 		return nil, fmt.Errorf("querying for active services: %w", err)
 	}
@@ -1090,8 +1090,8 @@ FROM stop_times
 INNER JOIN stops ON stop_times.stop_id = stops.id
 INNER JOIN trips ON stop_times.trip_id = trips.id
 INNER JOIN routes ON trips.route_id = routes.id
-WHERE stops.hash = $1 AND
-      stop_times.hash = $1 AND
+WHERE stop_times.hash = $1 AND
+      stops.hash = $1 AND
       trips.hash = $1 AND
       routes.hash = $1
 `
@@ -1273,8 +1273,7 @@ WHERE stops.hash = $1 AND
 	}
 
 	placeholders := []string{}
-	parentIDs := []interface{}{}
-	parentIDs = append(parentIDs, r.id)
+	parentIDs := []interface{}{r.id}
 	i := 2
 	for id := range parents {
 		parentIDs = append(parentIDs, id)
@@ -1398,7 +1397,10 @@ SELECT
 FROM
     stops
 WHERE
-    stops.location_type = 0 AND parent_station IS NULL OR stops.location_type = 1`)
+    stops.hash = $1 AND
+    (stops.location_type = 0 AND parent_station IS NULL OR stops.location_type = 1)`,
+		r.id)
+
 	if err != nil {
 		return nil, fmt.Errorf("querying for nearby stops: %w", err)
 	}
@@ -1434,16 +1436,16 @@ WHERE
 }
 
 func (r *PSQLFeedReader) getStopsByRouteType(routeTypes []RouteType) ([]*Stop, error) {
-	queryValues := []interface{}{}
+	queryValues := []interface{}{r.id}
 	for _, rt := range routeTypes {
 		queryValues = append(queryValues, rt)
 	}
 	routeTypePlaceholders := []string{}
 	for i := range routeTypes {
-		routeTypePlaceholders = append(routeTypePlaceholders, fmt.Sprintf("$%d", i+1))
+		routeTypePlaceholders = append(routeTypePlaceholders, fmt.Sprintf("$%d", i+2))
 	}
 
-	rows, err := r.db.Query(`
+	query := `
 SELECT
     stops.id,
     stops.code,
@@ -1470,18 +1472,24 @@ INNER JOIN routes ON trips.route_id = routes.id
 INNER JOIN stops ON stop_times.stop_id = stops.id
 LEFT OUTER JOIN stops AS parent ON stops.parent_station = parent.id
 WHERE
+    stop_times.hash = $1 AND
+    trips.hash = $1 AND
+    routes.hash = $1 AND
+    stops.hash = $1 AND
     stops.location_type = 0 AND
-    routes.type IN (`+strings.Join(routeTypePlaceholders, ", ")+`)
-`, queryValues...)
+    routes.type IN (` + strings.Join(routeTypePlaceholders, ", ") + `)
+`
+
+	rows, err := r.db.Query(query, queryValues...)
 	if err != nil {
-		return nil, fmt.Errorf("querying for stops by route type: %w", err)
+		return nil, fmt.Errorf("querying: %w", err)
 	}
 	defer rows.Close()
 
 	allStops := map[string]*Stop{}
 	for rows.Next() {
 		s := &Stop{}
-		//stopParentStation := sql.NullString{}
+		stopParentStation := sql.NullString{}
 		parentID := sql.NullString{}
 		parentCode := sql.NullString{}
 		parentName := sql.NullString{}
@@ -1500,7 +1508,7 @@ WHERE
 			&s.Lon,
 			&s.URL,
 			&s.LocationType,
-			&s.ParentStation,
+			&stopParentStation,
 			&s.PlatformCode,
 			&parentID,
 			&parentCode,
@@ -1514,6 +1522,10 @@ WHERE
 		)
 		if err != nil {
 			return nil, fmt.Errorf("scanning stop: %w", err)
+		}
+
+		if stopParentStation.Valid {
+			s.ParentStation = stopParentStation.String
 		}
 
 		if parentID.Valid {
