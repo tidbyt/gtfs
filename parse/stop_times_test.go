@@ -172,10 +172,12 @@ t,10:00:00,10:00:derp,s,1`,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			s := storage.NewMemoryStorage()
+			s, err := storage.NewSQLiteStorage()
+			require.NoError(t, err)
 			writer, err := s.GetWriter("test")
 			require.NoError(t, err)
 
+			require.NoError(t, writer.BeginStopTimes())
 			maxArrival, maxDeparture, err := ParseStopTimes(
 				writer,
 				bytes.NewBufferString(tc.content),
@@ -185,6 +187,9 @@ t,10:00:00,10:00:derp,s,1`,
 			if tc.err {
 				assert.Error(t, err)
 				return
+			} else {
+				assert.NoError(t, err)
+				assert.NoError(t, writer.EndStopTimes())
 			}
 
 			expectedMaxArrival := ""

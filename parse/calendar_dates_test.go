@@ -101,7 +101,8 @@ s1,20170101,2`,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			storage := storage.NewMemoryStorage()
+			storage, err := storage.NewSQLiteStorage()
+			require.NoError(t, err)
 			writer, err := storage.GetWriter("test")
 			require.NoError(t, err)
 

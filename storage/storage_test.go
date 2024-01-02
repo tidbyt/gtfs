@@ -1688,7 +1688,6 @@ func testFeedMetadataReadWrite(t *testing.T, sb StorageBuilder) {
 		SHA256:            "feed1",
 		URL:               "https://gtfs/feed1",
 		RetrievedAt:       time.Date(2018, 1, 2, 3, 4, 5, 0, time.UTC),
-		UpdatedAt:         time.Date(2018, 7, 2, 3, 4, 5, 0, time.UTC),
 		CalendarStartDate: "20190201",
 		CalendarEndDate:   "20191131",
 		FeedStartDate:     "20190101",
@@ -1702,7 +1701,6 @@ func testFeedMetadataReadWrite(t *testing.T, sb StorageBuilder) {
 		SHA256:            "feed2",
 		URL:               "https://gtfs/feed2",
 		RetrievedAt:       time.Date(2018, 2, 3, 4, 5, 6, 0, time.UTC),
-		UpdatedAt:         time.Date(2018, 8, 3, 4, 5, 6, 0, time.UTC),
 		CalendarStartDate: "20190202",
 		CalendarEndDate:   "20191130",
 		FeedStartDate:     "20190102",
@@ -1719,7 +1717,6 @@ func testFeedMetadataReadWrite(t *testing.T, sb StorageBuilder) {
 	assert.Equal(t, "feed2", feeds[0].SHA256)
 	assert.Equal(t, "https://gtfs/feed2", feeds[0].URL)
 	assert.True(t, time.Date(2018, 2, 3, 4, 5, 6, 0, time.UTC).Equal(feeds[0].RetrievedAt))
-	assert.True(t, time.Date(2018, 8, 3, 4, 5, 6, 0, time.UTC).Equal(feeds[0].UpdatedAt))
 	assert.Equal(t, "20190202", feeds[0].CalendarStartDate)
 	assert.Equal(t, "20191130", feeds[0].CalendarEndDate)
 	assert.Equal(t, "20190102", feeds[0].FeedStartDate)
@@ -1729,7 +1726,6 @@ func testFeedMetadataReadWrite(t *testing.T, sb StorageBuilder) {
 	assert.Equal(t, "feed1", feeds[1].SHA256)
 	assert.Equal(t, "https://gtfs/feed1", feeds[1].URL)
 	assert.True(t, time.Date(2018, 1, 2, 3, 4, 5, 0, time.UTC).Equal(feeds[1].RetrievedAt))
-	assert.True(t, time.Date(2018, 7, 2, 3, 4, 5, 0, time.UTC).Equal(feeds[1].UpdatedAt))
 	assert.Equal(t, "20190201", feeds[1].CalendarStartDate)
 	assert.Equal(t, "20191131", feeds[1].CalendarEndDate)
 	assert.Equal(t, "20190101", feeds[1].FeedStartDate)
@@ -1742,7 +1738,6 @@ func testFeedMetadataReadWrite(t *testing.T, sb StorageBuilder) {
 		SHA256:            "feed2",
 		URL:               "https://gtfs/feed2",
 		RetrievedAt:       time.Date(2019, 2, 3, 4, 5, 6, 0, time.UTC),
-		UpdatedAt:         time.Date(2019, 8, 3, 4, 5, 6, 0, time.UTC),
 		CalendarStartDate: "20200202",
 		CalendarEndDate:   "20201130",
 		FeedStartDate:     "20200102",
@@ -1759,7 +1754,6 @@ func testFeedMetadataReadWrite(t *testing.T, sb StorageBuilder) {
 	assert.Equal(t, "feed2", feeds[0].SHA256)
 	assert.Equal(t, "https://gtfs/feed2", feeds[0].URL)
 	assert.True(t, time.Date(2019, 2, 3, 4, 5, 6, 0, time.UTC).Equal(feeds[0].RetrievedAt))
-	assert.True(t, time.Date(2019, 8, 3, 4, 5, 6, 0, time.UTC).Equal(feeds[0].UpdatedAt))
 	assert.Equal(t, "20200202", feeds[0].CalendarStartDate)
 	assert.Equal(t, "20201130", feeds[0].CalendarEndDate)
 	assert.Equal(t, "20200102", feeds[0].FeedStartDate)
@@ -2033,6 +2027,174 @@ func testFeedOverwrite(t *testing.T, sb StorageBuilder) {
 	assert.Equal(t, "20190102", calendarDates[0].Date)
 }
 
+func testFeedRequest(t *testing.T, sb StorageBuilder) {
+	s, err := sb()
+	require.NoError(t, err)
+
+	// No requests at first
+	requests, err := s.ListFeedRequests("")
+	assert.NoError(t, err)
+	assert.Equal(t, 0, len(requests))
+	requests, err = s.ListFeedRequests("a-not-yet-added-url")
+	assert.NoError(t, err)
+	assert.Equal(t, 0, len(requests))
+
+	// Request without consumers
+	assert.NoError(t, s.WriteFeedRequest(storage.FeedRequest{
+		URL:         "https://google.com",
+		RefreshedAt: time.Date(2019, 1, 1, 0, 0, 0, 0, time.UTC),
+	}))
+
+	// Request with 1 consumer
+	assert.NoError(t, s.WriteFeedRequest(storage.FeedRequest{
+		URL:         "https://microsoft.com",
+		RefreshedAt: time.Date(2019, 1, 2, 0, 0, 0, 0, time.UTC),
+		Consumers: []storage.FeedConsumer{
+			{
+				Name:      "luigi",
+				Headers:   "luigi-headers",
+				CreatedAt: time.Date(2019, 1, 3, 0, 0, 0, 0, time.UTC),
+				UpdatedAt: time.Date(2019, 1, 4, 0, 0, 0, 0, time.UTC),
+			},
+		},
+	}))
+
+	// Request with >1 consumers
+	assert.NoError(t, s.WriteFeedRequest(storage.FeedRequest{
+		URL:         "https://yahoo.com",
+		RefreshedAt: time.Date(2019, 1, 5, 0, 0, 0, 0, time.UTC),
+		Consumers: []storage.FeedConsumer{
+			{
+				Name:      "luigi",
+				Headers:   "luigi-headers",
+				CreatedAt: time.Date(2019, 1, 6, 0, 0, 0, 0, time.UTC),
+				UpdatedAt: time.Date(2019, 1, 7, 0, 0, 0, 0, time.UTC),
+			},
+			{
+				Name:      "peach",
+				Headers:   "peach-headers",
+				CreatedAt: time.Date(2019, 1, 8, 0, 0, 0, 0, time.UTC),
+				UpdatedAt: time.Date(2019, 1, 9, 0, 0, 0, 0, time.UTC),
+			},
+		},
+	}))
+
+	// All can be read back
+	requests, err = s.ListFeedRequests("")
+	assert.NoError(t, err)
+	assert.Equal(t, 3, len(requests))
+	sort.Slice(requests, func(i, j int) bool {
+		return requests[i].RefreshedAt.Before(requests[j].RefreshedAt)
+	})
+	assert.Equal(t, "https://google.com", requests[0].URL)
+	assert.Equal(t, "https://microsoft.com", requests[1].URL)
+	assert.Equal(t, "https://yahoo.com", requests[2].URL)
+	assert.Equal(t, 0, len(requests[0].Consumers))
+	assert.Equal(t, 1, len(requests[1].Consumers))
+	assert.Equal(t, 2, len(requests[2].Consumers))
+	sort.Slice(requests[1].Consumers, func(i, j int) bool {
+		return requests[1].Consumers[i].CreatedAt.Before(requests[1].Consumers[j].CreatedAt)
+	})
+	assert.Equal(t, "luigi", requests[1].Consumers[0].Name)
+	assert.Equal(t, "luigi-headers", requests[1].Consumers[0].Headers)
+	assert.Equal(t, "peach", requests[2].Consumers[1].Name)
+	assert.Equal(t, "peach-headers", requests[2].Consumers[1].Headers)
+	assert.Equal(t, time.Date(2019, 1, 1, 0, 0, 0, 0, time.UTC), requests[0].RefreshedAt)
+	assert.Equal(t, time.Date(2019, 1, 2, 0, 0, 0, 0, time.UTC), requests[1].RefreshedAt)
+	assert.Equal(t, time.Date(2019, 1, 5, 0, 0, 0, 0, time.UTC), requests[2].RefreshedAt)
+
+	// Filter by URL
+	requests, err = s.ListFeedRequests("https://yahoo.com")
+	assert.NoError(t, err)
+	assert.Equal(t, 1, len(requests))
+	assert.Equal(t, "https://yahoo.com", requests[0].URL)
+	assert.Equal(t, 2, len(requests[0].Consumers))
+
+	// A single consumer among >1 can be updated. Since record
+	// exists, consumer's created_at is ignored, but updated_at is
+	// written. Since no refreshed_at is passed on the request, it
+	// won't be updated either.
+	assert.NoError(t, s.WriteFeedRequest(storage.FeedRequest{
+		URL: "https://yahoo.com",
+		Consumers: []storage.FeedConsumer{
+			{
+				Name:      "luigi",
+				Headers:   "luigi-headers-have-changed",
+				CreatedAt: time.Date(2023, 12, 12, 0, 0, 0, 0, time.UTC),
+				UpdatedAt: time.Date(2019, 2, 1, 0, 0, 0, 0, time.UTC),
+			},
+		},
+	}))
+	requests, err = s.ListFeedRequests("https://yahoo.com")
+	assert.NoError(t, err)
+	assert.Equal(t, 1, len(requests))
+	assert.Equal(t, "https://yahoo.com", requests[0].URL)
+	assert.Equal(t, time.Date(2019, 1, 5, 0, 0, 0, 0, time.UTC), requests[0].RefreshedAt)
+	assert.Equal(t, 2, len(requests[0].Consumers))
+	sort.Slice(requests[0].Consumers, func(i, j int) bool {
+		return requests[0].Consumers[i].CreatedAt.Before(requests[0].Consumers[j].CreatedAt)
+	})
+	assert.Equal(t, "luigi", requests[0].Consumers[0].Name)
+	assert.Equal(t, "luigi-headers-have-changed", requests[0].Consumers[0].Headers)
+	assert.Equal(t, time.Date(2019, 1, 6, 0, 0, 0, 0, time.UTC), requests[0].Consumers[0].CreatedAt)
+	assert.Equal(t, time.Date(2019, 2, 1, 0, 0, 0, 0, time.UTC), requests[0].Consumers[0].UpdatedAt)
+	assert.Equal(t, "peach", requests[0].Consumers[1].Name)
+	assert.Equal(t, "peach-headers", requests[0].Consumers[1].Headers)
+	assert.Equal(t, time.Date(2019, 1, 8, 0, 0, 0, 0, time.UTC), requests[0].Consumers[1].CreatedAt)
+	assert.Equal(t, time.Date(2019, 1, 9, 0, 0, 0, 0, time.UTC), requests[0].Consumers[1].UpdatedAt)
+
+	// New consumer can also be added
+	assert.NoError(t, s.WriteFeedRequest(storage.FeedRequest{
+		URL: "https://google.com",
+		Consumers: []storage.FeedConsumer{
+			{
+				Name:      "mario",
+				Headers:   "mario-headers",
+				CreatedAt: time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC),
+				UpdatedAt: time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC),
+			},
+		},
+	}))
+	requests, err = s.ListFeedRequests("https://google.com")
+	assert.NoError(t, err)
+	assert.Equal(t, 1, len(requests))
+	assert.Equal(t, "https://google.com", requests[0].URL)
+	assert.Equal(t, time.Date(2019, 1, 1, 0, 0, 0, 0, time.UTC), requests[0].RefreshedAt)
+	assert.Equal(t, 1, len(requests[0].Consumers))
+	assert.Equal(t, "mario", requests[0].Consumers[0].Name)
+	assert.Equal(t, "mario-headers", requests[0].Consumers[0].Headers)
+	assert.Equal(t, time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC), requests[0].Consumers[0].CreatedAt)
+	assert.Equal(t, time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC), requests[0].Consumers[0].UpdatedAt)
+
+	// Updating only refreshed_at works, and will not affect the
+	// consumers
+	assert.NoError(t, s.WriteFeedRequest(storage.FeedRequest{
+		URL:         "https://google.com",
+		RefreshedAt: time.Date(2020, 1, 3, 0, 0, 0, 0, time.UTC),
+	}))
+	assert.NoError(t, s.WriteFeedRequest(storage.FeedRequest{
+		URL:         "https://microsoft.com",
+		RefreshedAt: time.Date(2020, 1, 4, 0, 0, 0, 0, time.UTC),
+	}))
+	requests, err = s.ListFeedRequests("https://google.com")
+	assert.NoError(t, err)
+	assert.Equal(t, 1, len(requests))
+	assert.Equal(t, "https://google.com", requests[0].URL)
+	assert.Equal(t, time.Date(2020, 1, 3, 0, 0, 0, 0, time.UTC), requests[0].RefreshedAt)
+	assert.Equal(t, 1, len(requests[0].Consumers))
+	assert.Equal(t, "mario", requests[0].Consumers[0].Name)
+	requests, err = s.ListFeedRequests("https://microsoft.com")
+	assert.NoError(t, err)
+	assert.Equal(t, 1, len(requests))
+	assert.Equal(t, "https://microsoft.com", requests[0].URL)
+	assert.Equal(t, time.Date(2020, 1, 4, 0, 0, 0, 0, time.UTC), requests[0].RefreshedAt)
+	assert.Equal(t, 1, len(requests[0].Consumers))
+	assert.Equal(t, "luigi", requests[0].Consumers[0].Name)
+	assert.Equal(t, "luigi-headers", requests[0].Consumers[0].Headers)
+	assert.Equal(t, time.Date(2019, 1, 3, 0, 0, 0, 0, time.UTC), requests[0].Consumers[0].CreatedAt)
+	assert.Equal(t, time.Date(2019, 1, 4, 0, 0, 0, 0, time.UTC), requests[0].Consumers[0].UpdatedAt)
+}
+
 func TestStorage(t *testing.T) {
 	for _, test := range []struct {
 		Name string
@@ -2060,12 +2222,8 @@ func TestStorage(t *testing.T) {
 		{"FeedMetadataFiltering", testFeedMetadataFiltering},
 		{"FeedMetadataDeletion", testFeedMetadataDeletion},
 		{"FeedOverwrite", testFeedOverwrite},
+		{"FeedRequest", testFeedRequest},
 	} {
-		t.Run(fmt.Sprintf("%s memory", test.Name), func(t *testing.T) {
-			test.Test(t, func() (storage.Storage, error) {
-				return storage.NewMemoryStorage(), nil
-			})
-		})
 		t.Run(fmt.Sprintf("%s SQLiteMemory", test.Name), func(t *testing.T) {
 			test.Test(t, func() (storage.Storage, error) {
 				return storage.NewSQLiteStorage()

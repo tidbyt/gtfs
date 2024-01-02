@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"time"
@@ -47,9 +48,16 @@ func LoadStaticFeed() (*gtfs.Static, error) {
 	}
 	manager := gtfs.NewManager(s)
 
-	static, err := manager.LoadStatic(staticURL, time.Now())
+	static, err := manager.LoadStaticAsync("cli", staticURL, nil, time.Now())
 	if err != nil {
-		return nil, err
+		err = manager.Refresh(context.Background())
+		if err != nil {
+			return nil, err
+		}
+		static, err = manager.LoadStaticAsync("cli", staticURL, nil, time.Now())
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return static, nil
@@ -69,7 +77,7 @@ func LoadRealtimeFeed() (*gtfs.Realtime, error) {
 	}
 	manager := gtfs.NewManager(s)
 
-	realtime, err := manager.LoadRealtime(staticURL, nil, realtimeURL, nil, time.Now())
+	realtime, err := manager.LoadRealtime("cli", staticURL, nil, realtimeURL, nil, time.Now())
 	if err != nil {
 		return nil, err
 	}

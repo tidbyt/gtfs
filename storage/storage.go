@@ -4,24 +4,70 @@ import (
 	"time"
 )
 
+// TODO:
+// - Remove UpdatedAt from FeedMetadata
+// - s/sha256/hash/
+// - s/FeedMetadata/Feed/
+// - Remove FeedStartDate/FeedEndDate
+
 type Storage interface {
+	// Retrieves all feed metadata records matching the given
+	// filter.
 	ListFeeds(filter ListFeedsFilter) ([]*FeedMetadata, error)
-	GetReader(feed string) (FeedReader, error)
-	GetWriter(feed string) (FeedWriter, error)
+
+	// Writes a FeedMetadata record. If a record with the same URL
+	// and hash exists, it is updated.
 	WriteFeedMetadata(metadata *FeedMetadata) error
-	DeleteFeedMetadata(url string, sha256 string) error
+
+	// Retrieves all feed requests matching the given URL. If the
+	// URL is blank, all requests are returned.
+	ListFeedRequests(url string) ([]FeedRequest, error)
+
+	// Writes a FeedRequest record. If a record with the same URL
+	// exists, it is updated. All consumers included in the
+	// request will be created/updated. Missing consumers will
+	// _not_ be removed.
+	WriteFeedRequest(req FeedRequest) error
+
+	DeleteFeedMetadata(url string, sha256 string) error // TODO: delete this
+
+	// Gets a reader for the feed with the given hash.
+	GetReader(feed string) (FeedReader, error)
+
+	// Gets a writer for the feed with the given hash.
+	GetWriter(feed string) (FeedWriter, error)
 }
 
 type ListFeedsFilter struct {
-	URL    string
+	// If set, only include feeds with the given URL.
+	URL string
+
+	// If set, only include feeds with the given hash.
 	SHA256 string
 }
 
+// A request to download a static GTFS feed at the given URL. The same
+// URL can be requested by multiple consumers of the data, possibly
+// with different HTTP headers holding API keys.
+type FeedRequest struct {
+	URL         string
+	RefreshedAt time.Time
+	Consumers   []FeedConsumer
+}
+
+type FeedConsumer struct {
+	Name      string
+	Headers   string
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+// Metadata for a downloaded static GTFS feed. The parsed data can be
+// accessed via FeedReader.
 type FeedMetadata struct {
-	SHA256            string
 	URL               string
+	SHA256            string
 	RetrievedAt       time.Time
-	UpdatedAt         time.Time
 	Timezone          string
 	CalendarStartDate string
 	CalendarEndDate   string

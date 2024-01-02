@@ -56,7 +56,6 @@ CREATE TABLE IF NOT EXISTS feed (
     sha256 TEXT,
     url TEXT NOT NULL,
     retrieved_at TIMESTAMP NOT NULL,
-    updated_at TIMESTAMP NOT NULL,
     calendar_start TEXT NOT NULL,
     calendar_end TEXT NOT NULL,
     feed_start TEXT NOT NULL,
@@ -65,6 +64,21 @@ CREATE TABLE IF NOT EXISTS feed (
     max_arrival TEXT NOT NULL,
     max_departure TEXT NOT NULL,
 PRIMARY KEY (sha256, url)
+);
+
+CREATE TABLE IF NOT EXISTS feed_request (
+    url TEXT NOT NULL,
+    refreshed_at TIMESTAMP NOT NULL,
+PRIMARY KEY (url)
+);
+
+CREATE TABLE IF NOT EXISTS feed_consumer (
+    name TEXT NOT NULL,
+    url TEXT NOT NULL,
+    headers TEXT NOT NULL,
+    created_at TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP NOT NULL,
+PRIMARY KEY (name, url)
 );`)
 	if err != nil {
 		db.Close()
@@ -87,7 +101,6 @@ SELECT
     sha256,
     url,
     retrieved_at,
-    updated_at,
     calendar_start,
     calendar_end,
     feed_start,
@@ -126,7 +139,6 @@ FROM feed`
 			&feed.SHA256,
 			&feed.URL,
 			&feed.RetrievedAt,
-			&feed.UpdatedAt,
 			&feed.CalendarStartDate,
 			&feed.CalendarEndDate,
 			&feed.FeedStartDate,
@@ -144,13 +156,76 @@ FROM feed`
 	return feeds, nil
 }
 
+func (s *SQLiteStorage) ListFeedRequests(url string) ([]FeedRequest, error) {
+	query := `
+SELECT
+    req.url,
+    req.refreshed_at,
+    con.name,
+    con.headers,
+    con.created_at,
+    con.updated_at
+FROM feed_request req
+LEFT JOIN feed_consumer con ON req.url = con.url`
+
+	var rows *sql.Rows
+	var err error
+	if url != "" {
+		query += " WHERE req.url = ?"
+		rows, err = s.feedDB.Query(query, url)
+	} else {
+		rows, err = s.feedDB.Query(query)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("listing feed requests: %w", err)
+	}
+
+	requests := map[string]*FeedRequest{}
+	for rows.Next() {
+		var req FeedRequest
+		var con FeedConsumer
+		var name sql.NullString
+		var headers sql.NullString
+		var createdAt sql.NullTime
+		var updatedAt sql.NullTime
+		err := rows.Scan(
+			&req.URL,
+			&req.RefreshedAt,
+			&name,
+			&headers,
+			&createdAt,
+			&updatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("scanning feed request: %w", err)
+		}
+
+		if _, ok := requests[req.URL]; !ok {
+			requests[req.URL] = &req
+		}
+		if name.Valid {
+			con.Name = name.String
+			con.Headers = headers.String
+			con.CreatedAt = createdAt.Time
+			con.UpdatedAt = updatedAt.Time
+			requests[req.URL].Consumers = append(requests[req.URL].Consumers, con)
+		}
+	}
+
+	reqs := []FeedRequest{}
+	for _, req := range requests {
+		reqs = append(reqs, *req)
+	}
+
+	return reqs, nil
+}
+
 func (s *SQLiteStorage) WriteFeedMetadata(feed *FeedMetadata) error {
 	_, err := s.feedDB.Exec(`
 INSERT INTO feed (
     sha256,
     url,
     retrieved_at,
-    updated_at,
     calendar_start,
     calendar_end,
     feed_start,
@@ -159,10 +234,9 @@ INSERT INTO feed (
     max_arrival,
     max_departure
 )
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT (sha256, url) DO UPDATE SET
     retrieved_at = excluded.retrieved_at,
-    updated_at = excluded.updated_at,
     calendar_start = excluded.calendar_start,
     calendar_end = excluded.calendar_end,
     feed_start = excluded.feed_start,
@@ -174,7 +248,6 @@ ON CONFLICT (sha256, url) DO UPDATE SET
 		feed.SHA256,
 		feed.URL,
 		feed.RetrievedAt,
-		feed.UpdatedAt,
 		feed.CalendarStartDate,
 		feed.CalendarEndDate,
 		feed.FeedStartDate,
@@ -186,6 +259,55 @@ ON CONFLICT (sha256, url) DO UPDATE SET
 	if err != nil {
 		return fmt.Errorf("writing feed metadata: %w", err)
 	}
+	return nil
+}
+
+func (s *SQLiteStorage) WriteFeedRequest(req FeedRequest) error {
+	tx, err := s.feedDB.Begin()
+	if err != nil {
+		return fmt.Errorf("starting transaction: %w", err)
+	}
+
+	query := `
+INSERT INTO feed_request (url, refreshed_at)
+VALUES (?, ?)
+ON CONFLICT (url)`
+
+	if req.RefreshedAt.IsZero() {
+		query += " DO NOTHING"
+	} else {
+		query += "DO UPDATE SET refreshed_at = excluded.refreshed_at"
+	}
+
+	_, err = tx.Exec(query, req.URL, req.RefreshedAt)
+	if err != nil {
+		tx.Rollback()
+		return fmt.Errorf("inserting feed request: %w", err)
+	}
+
+	for _, con := range req.Consumers {
+		// Write the consumer record. Only update updated_at
+		// if headers have changed.
+		_, err = tx.Exec(`
+INSERT INTO feed_consumer (name, url, headers, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?)
+ON CONFLICT (name, url) DO UPDATE SET
+    headers = excluded.headers,
+    updated_at = CASE
+        WHEN excluded.headers != feed_consumer.headers THEN excluded.updated_at
+        ELSE feed_consumer.updated_at
+    END`,
+			con.Name, req.URL, con.Headers, con.CreatedAt, con.UpdatedAt)
+		if err != nil {
+			tx.Rollback()
+			return fmt.Errorf("inserting feed consumer: %w", err)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("committing transaction: %w", err)
+	}
+
 	return nil
 }
 

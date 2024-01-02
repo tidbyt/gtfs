@@ -27,9 +27,7 @@ const (
 func GFSTest_BuildStorage(t testing.TB, backend string) storage.Storage {
 	var s storage.Storage
 	var err error
-	if backend == "memory" {
-		s = storage.NewMemoryStorage()
-	} else if backend == "sqlite" {
+	if backend == "sqlite" {
 		s, err = storage.NewSQLiteStorage()
 		require.NoError(t, err)
 	} else if backend == "postgres" {

@@ -1117,9 +1117,6 @@ func TestStatic(t *testing.T) {
 		{"StaticDeparturesWithParentStations", testStaticDeparturesWithParentStations},
 		{"StaticDeparturesDaylightsSavings", testStaticDeparturesDaylightsSavings},
 	} {
-		t.Run(fmt.Sprintf("%s memory", test.Name), func(t *testing.T) {
-			test.Test(t, "memory")
-		})
 		t.Run(fmt.Sprintf("%s SQLite", test.Name), func(t *testing.T) {
 			test.Test(t, "sqlite")
 		})
