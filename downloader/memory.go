@@ -7,26 +7,26 @@ import (
 )
 
 // Caches downloaded files in memory
-type MemoryDownloader struct {
-	mutex sync.Mutex
-	cache map[string]downloaderCacheEntry
+type Memory struct {
+	mutex   sync.Mutex
+	records map[string]memoryRecord
 
 	TimeNow func() time.Time
 }
 
-func NewMemoryDownloader() *MemoryDownloader {
-	return &MemoryDownloader{
-		cache:   make(map[string]downloaderCacheEntry),
-		TimeNow: time.Now,
-	}
-}
-
-type downloaderCacheEntry struct {
+type memoryRecord struct {
 	data       []byte
 	expiration time.Time
 }
 
-func (d *MemoryDownloader) Get(
+func NewMemory() *Memory {
+	return &Memory{
+		records: map[string]memoryRecord{},
+		TimeNow: time.Now,
+	}
+}
+
+func (d *Memory) Get(
 	ctx context.Context,
 	url string,
 	headers map[string]string,
@@ -36,9 +36,9 @@ func (d *MemoryDownloader) Get(
 		d.mutex.Lock()
 		defer d.mutex.Unlock()
 
-		if entry, ok := d.cache[url]; ok {
-			if entry.expiration.After(d.TimeNow()) {
-				return entry.data, nil
+		if record, ok := d.records[url]; ok {
+			if record.expiration.After(d.TimeNow()) {
+				return record.data, nil
 			}
 		}
 	}
@@ -49,7 +49,7 @@ func (d *MemoryDownloader) Get(
 	}
 
 	if options.Cache {
-		d.cache[url] = downloaderCacheEntry{
+		d.records[url] = memoryRecord{
 			data:       body,
 			expiration: d.TimeNow().Add(options.CacheTTL),
 		}
