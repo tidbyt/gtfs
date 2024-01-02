@@ -214,7 +214,7 @@ func (rt *Realtime) Departures(
 
 // Updates all updates to have both stop_id and stop_sequence set.
 //
-// GTFS-rt's StopTimeUpdates can rereference stops using stop_id,
+// GTFS-rt's StopTimeUpdates can reference stops using stop_id,
 // stop_sequence, or both. We absolutely need stop_sequence to handle
 // propagation of delay, and it seems likely we'll need stop_id as
 // well to handle added stops/trips in the future.
