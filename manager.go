@@ -54,7 +54,7 @@ func NewManager(s storage.Storage) *Manager {
 		StaticMaxSize:         DefaultStaticMaxSize,
 		StaticRefreshInterval: DefaultStaticRefreshInterval,
 
-		Downloader: downloader.NewMemoryDownloader(),
+		Downloader: downloader.NewMemory(),
 
 		storage: s,
 	}

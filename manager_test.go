@@ -740,7 +740,7 @@ func testManagerLoadRealtime(t *testing.T, strg storage.Storage) {
 
 	// Mock clock on the downloader to control caching
 	now := time.Now()
-	dl := downloader.NewMemoryDownloader()
+	dl := downloader.NewMemory()
 	dl.TimeNow = func() time.Time {
 		return now
 	}
