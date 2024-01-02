@@ -311,14 +311,6 @@ ON CONFLICT (name, url) DO UPDATE SET
 	return nil
 }
 
-func (s *SQLiteStorage) DeleteFeedMetadata(url string, sha256 string) error {
-	_, err := s.feedDB.Exec(`
-DELETE FROM feed
-WHERE url = ? AND sha256 = ?
-`, url, sha256)
-	return err
-}
-
 func (s *SQLiteStorage) GetReader(feedID string) (FeedReader, error) {
 	db, found := s.feeds[feedID]
 	if found {

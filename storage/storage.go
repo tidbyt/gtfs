@@ -29,8 +29,6 @@ type Storage interface {
 	// _not_ be removed.
 	WriteFeedRequest(req FeedRequest) error
 
-	DeleteFeedMetadata(url string, sha256 string) error // TODO: delete this
-
 	// Gets a reader for the feed with the given hash.
 	GetReader(feed string) (FeedReader, error)
 

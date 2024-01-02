@@ -1848,57 +1848,6 @@ func testFeedMetadataFiltering(t *testing.T, sb StorageBuilder) {
 	assert.Equal(t, "deadbeef", feeds[1].SHA256)
 }
 
-func testFeedMetadataDeletion(t *testing.T, sb StorageBuilder) {
-	s, err := sb()
-	require.NoError(t, err)
-
-	// Write some feeds
-	require.NoError(t, s.WriteFeedMetadata(&storage.FeedMetadata{
-		URL:    "https://gtfs/feed1",
-		SHA256: "deadbeef",
-	}))
-	require.NoError(t, s.WriteFeedMetadata(&storage.FeedMetadata{
-		URL:    "https://gtfs/feed2",
-		SHA256: "cafed00d",
-	}))
-	require.NoError(t, s.WriteFeedMetadata(&storage.FeedMetadata{
-		URL:    "https://gtfs/feed3",
-		SHA256: "1337ca7",
-	}))
-	require.NoError(t, s.WriteFeedMetadata(&storage.FeedMetadata{
-		URL:    "https://gtfs/feed4",
-		SHA256: "deadbeef", // same as feed 1
-	}))
-	require.NoError(t, s.WriteFeedMetadata(&storage.FeedMetadata{
-		URL:    "https://gtfs/feed4", // second occurrence of feed 4
-		SHA256: "feedface",
-	}))
-	require.NoError(t, s.WriteFeedMetadata(&storage.FeedMetadata{
-		URL:    "https://gtfs/feed5",
-		SHA256: "", //blank
-	}))
-
-	// Delete some feeds
-	assert.NoError(t, s.DeleteFeedMetadata("https://gtfs/feed1", "deadbeef"))
-	assert.NoError(t, s.DeleteFeedMetadata("https://gtfs/feed4", "feedface"))
-	assert.NoError(t, s.DeleteFeedMetadata("https://gtfs/feed5", ""))
-
-	// They're now gone
-	feeds, err := s.ListFeeds(storage.ListFeedsFilter{})
-	require.NoError(t, err)
-	assert.Equal(t, 3, len(feeds))
-	sort.Slice(feeds, func(i, j int) bool {
-		return feeds[i].URL < feeds[j].URL
-	})
-	assert.Equal(t, "https://gtfs/feed2", feeds[0].URL)
-	assert.Equal(t, "cafed00d", feeds[0].SHA256)
-	assert.Equal(t, "https://gtfs/feed3", feeds[1].URL)
-	assert.Equal(t, "1337ca7", feeds[1].SHA256)
-	assert.Equal(t, "https://gtfs/feed4", feeds[2].URL)
-	assert.Equal(t, "deadbeef", feeds[2].SHA256)
-
-}
-
 func testFeedOverwrite(t *testing.T, sb StorageBuilder) {
 	// Two completely different feeds
 	feed1 := map[string][]string{
@@ -2220,7 +2169,6 @@ func TestStorage(t *testing.T) {
 		{"NearbyStopsWithParentStations", testNearbyStopsWithParentStations},
 		{"FeedMetadataReadWrite", testFeedMetadataReadWrite},
 		{"FeedMetadataFiltering", testFeedMetadataFiltering},
-		{"FeedMetadataDeletion", testFeedMetadataDeletion},
 		{"FeedOverwrite", testFeedOverwrite},
 		{"FeedRequest", testFeedRequest},
 	} {

@@ -333,14 +333,6 @@ ON CONFLICT (name, url) DO UPDATE SET
 	return nil
 }
 
-func (s *PSQLStorage) DeleteFeedMetadata(url string, sha256 string) error {
-	_, err := s.db.Exec(`
-DELETE FROM feed
-WHERE url = $1 AND sha256 = $2
-`, url, sha256)
-	return err
-}
-
 func (s *PSQLStorage) GetReader(feedID string) (FeedReader, error) {
 	return &PSQLFeedReader{
 		id: feedID,
