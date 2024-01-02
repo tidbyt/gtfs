@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	PostgresConnStr = "postgres://postgres:mysecretpassword@localhost:5432/gtfs?sslmode=disable"
+	PostgresConnStr = "" // "postgres://postgres:mysecretpassword@localhost:5432/gtfs?sslmode=disable"
 )
 
 func BuildStorage(t testing.TB, backend string) storage.Storage {
