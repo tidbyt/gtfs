@@ -3,10 +3,12 @@ package gtfs_test
 import (
 	"testing"
 	"time"
+
+	"tidbyt.dev/gtfs/testutil"
 )
 
 func benchNearbyStops(b *testing.B, backend string) {
-	static := GTFSTest_LoadStaticFile(b, backend, "testdata/caltrain_20160406.zip")
+	static := testutil.LoadStaticFile(b, backend, "testdata/caltrain_20160406.zip")
 
 	b.ResetTimer()
 
@@ -20,7 +22,7 @@ func benchNearbyStops(b *testing.B, backend string) {
 }
 
 func benchDepartures(b *testing.B, backend string) {
-	static := GTFSTest_LoadStaticFile(b, backend, "testdata/caltrain_20160406.zip")
+	static := testutil.LoadStaticFile(b, backend, "testdata/caltrain_20160406.zip")
 
 	tz, err := time.LoadLocation("America/Los_Angeles")
 	if err != nil {
@@ -59,7 +61,7 @@ func BenchmarkGTFSStatic(b *testing.B) {
 		b.Run(test.Name+"_sqlite", func(b *testing.B) {
 			test.Bench(b, "sqlite")
 		})
-		if PostgresConnStr != "" {
+		if testutil.PostgresConnStr != "" {
 			b.Run(test.Name+"_postgres", func(b *testing.B) {
 				test.Bench(b, "postgres")
 			})

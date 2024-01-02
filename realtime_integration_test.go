@@ -17,10 +17,11 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"tidbyt.dev/gtfs"
+	"tidbyt.dev/gtfs/testutil"
 )
 
 func loadNYCFerryRealtime(t *testing.T, suffix string) *gtfs.Realtime {
-	static := GTFSTest_LoadStaticFile(t, "sqlite", "testdata/nycferry_static.zip")
+	static := testutil.LoadStaticFile(t, "sqlite", "testdata/nycferry_static.zip")
 
 	buf, err := ioutil.ReadFile(fmt.Sprintf("testdata/nycferry_realtime_%s", suffix))
 	require.NoError(t, err)

@@ -1,8 +1,6 @@
 package gtfs_test
 
 import (
-	"archive/zip"
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -11,7 +9,6 @@ import (
 	"net/http/httptest"
 	"os"
 	"sort"
-	"strings"
 	"testing"
 	"time"
 
@@ -23,6 +20,7 @@ import (
 	"tidbyt.dev/gtfs"
 	"tidbyt.dev/gtfs/downloader"
 	"tidbyt.dev/gtfs/storage"
+	"tidbyt.dev/gtfs/testutil"
 )
 
 type MockGTFSServer struct {
@@ -133,27 +131,13 @@ func validRealtimeFeed(t *testing.T, timestamp time.Time) []byte {
 	return data
 }
 
-func buildZip(t *testing.T, files map[string][]string) []byte {
-	buf := &bytes.Buffer{}
-	w := zip.NewWriter(buf)
-	for filename, content := range files {
-		f, err := w.Create(filename)
-		require.NoError(t, err)
-		_, err = f.Write([]byte(strings.Join(content, "\n")))
-		require.NoError(t, err)
-	}
-	require.NoError(t, w.Close())
-
-	return buf.Bytes()
-}
-
 func testManagerLoadSingleFeed(t *testing.T, strg storage.Storage) {
 	m := gtfs.NewManager(strg)
 
 	server := managerFixture()
 	defer server.Server.Close()
 
-	server.Feeds["/static.zip"] = buildZip(t, validFeed())
+	server.Feeds["/static.zip"] = testutil.BuildZip(t, validFeed())
 
 	when := time.Date(2019, 2, 1, 0, 0, 0, 0, time.UTC)
 
@@ -183,7 +167,7 @@ func testManagerLoadMultipleURLs(t *testing.T, strg storage.Storage) {
 
 	// Two different static feeds, served on separate URLs.
 	files := validFeed()
-	server.Feeds["/static1.zip"] = buildZip(t, validFeed())
+	server.Feeds["/static1.zip"] = testutil.BuildZip(t, validFeed())
 	files["stops.txt"] = []string{
 		"stop_id,stop_name,stop_lat,stop_lon",
 		"s2,S2,12,34",
@@ -192,7 +176,7 @@ func testManagerLoadMultipleURLs(t *testing.T, strg storage.Storage) {
 		"trip_id,arrival_time,departure_time,stop_id,stop_sequence",
 		"t,12:00:00,12:00:00,s2,1",
 	}
-	server.Feeds["/static2.zip"] = buildZip(t, files)
+	server.Feeds["/static2.zip"] = testutil.BuildZip(t, files)
 
 	// First request for each will fail, but create requests.
 	when := time.Date(2019, 2, 1, 0, 0, 0, 0, time.UTC)
@@ -232,7 +216,7 @@ func testManagerLoadWithHeaders(t *testing.T, strg storage.Storage) {
 
 	// Three feeds, on separate URLs.
 	files := validFeed()
-	server.Feeds["/static1.zip"] = buildZip(t, validFeed())
+	server.Feeds["/static1.zip"] = testutil.BuildZip(t, validFeed())
 	files["stops.txt"] = []string{
 		"stop_id,stop_name,stop_lat,stop_lon",
 		"s2,S2,12,34",
@@ -241,7 +225,7 @@ func testManagerLoadWithHeaders(t *testing.T, strg storage.Storage) {
 		"trip_id,arrival_time,departure_time,stop_id,stop_sequence",
 		"t,12:00:00,12:00:00,s2,1",
 	}
-	server.Feeds["/static2.zip"] = buildZip(t, files)
+	server.Feeds["/static2.zip"] = testutil.BuildZip(t, files)
 	files["stops.txt"] = []string{
 		"stop_id,stop_name,stop_lat,stop_lon",
 		"s3,S3,12,34",
@@ -250,7 +234,7 @@ func testManagerLoadWithHeaders(t *testing.T, strg storage.Storage) {
 		"trip_id,arrival_time,departure_time,stop_id,stop_sequence",
 		"t,12:00:00,12:00:00,s3,1",
 	}
-	server.Feeds["/static3.zip"] = buildZip(t, files)
+	server.Feeds["/static3.zip"] = testutil.BuildZip(t, files)
 
 	// First and second requires different headers. Third requires
 	// no headers.
@@ -326,7 +310,7 @@ func testManagerMultipleConsumers(t *testing.T, strg storage.Storage) {
 
 	// Three feeds, on separate URLs.
 	files := validFeed()
-	server.Feeds["/static1.zip"] = buildZip(t, validFeed())
+	server.Feeds["/static1.zip"] = testutil.BuildZip(t, validFeed())
 	files["stops.txt"] = []string{
 		"stop_id,stop_name,stop_lat,stop_lon",
 		"s2,S2,12,34",
@@ -335,7 +319,7 @@ func testManagerMultipleConsumers(t *testing.T, strg storage.Storage) {
 		"trip_id,arrival_time,departure_time,stop_id,stop_sequence",
 		"t,12:00:00,12:00:00,s2,1",
 	}
-	server.Feeds["/static2.zip"] = buildZip(t, files)
+	server.Feeds["/static2.zip"] = testutil.BuildZip(t, files)
 	files["stops.txt"] = []string{
 		"stop_id,stop_name,stop_lat,stop_lon",
 		"s3,S3,12,34",
@@ -344,7 +328,7 @@ func testManagerMultipleConsumers(t *testing.T, strg storage.Storage) {
 		"trip_id,arrival_time,departure_time,stop_id,stop_sequence",
 		"t,12:00:00,12:00:00,s3,1",
 	}
-	server.Feeds["/static3.zip"] = buildZip(t, files)
+	server.Feeds["/static3.zip"] = testutil.BuildZip(t, files)
 
 	// First and second requires different headers. Third requires
 	// no headers.
@@ -481,7 +465,7 @@ func testManagerLoadWithRefresh(t *testing.T, strg storage.Storage) {
 
 	// Three versions of a feed, each differing in stops.txt.
 	files := validFeed()
-	feed1Zip := buildZip(t, files)
+	feed1Zip := testutil.BuildZip(t, files)
 	files["stops.txt"] = []string{
 		"stop_id,stop_name,stop_lat,stop_lon",
 		"s2,S,12,34",
@@ -490,7 +474,7 @@ func testManagerLoadWithRefresh(t *testing.T, strg storage.Storage) {
 		"trip_id,arrival_time,departure_time,stop_id,stop_sequence",
 		"t,12:00:00,12:00:00,s2,1",
 	}
-	feed2Zip := buildZip(t, files)
+	feed2Zip := testutil.BuildZip(t, files)
 	files["stops.txt"] = []string{
 		"stop_id,stop_name,stop_lat,stop_lon",
 		"s3,S,12,34",
@@ -499,7 +483,7 @@ func testManagerLoadWithRefresh(t *testing.T, strg storage.Storage) {
 		"trip_id,arrival_time,departure_time,stop_id,stop_sequence",
 		"t,12:00:00,12:00:00,s3,1",
 	}
-	feed3Zip := buildZip(t, files)
+	feed3Zip := testutil.BuildZip(t, files)
 
 	when := time.Date(2019, 2, 1, 0, 0, 0, 0, time.UTC)
 
@@ -613,8 +597,8 @@ func testManagerBrokenData(t *testing.T, strg storage.Storage) {
 	server := managerFixture()
 	defer server.Server.Close()
 
-	goodZip := buildZip(t, validFeed())
-	badZip := buildZip(t, map[string][]string{"parse": []string{"fail"}})
+	goodZip := testutil.BuildZip(t, validFeed())
+	badZip := testutil.BuildZip(t, map[string][]string{"parse": []string{"fail"}})
 
 	when := time.Date(2019, 2, 1, 0, 0, 0, 0, time.UTC)
 
@@ -699,7 +683,7 @@ func testManagerAsyncLoad(t *testing.T, strg storage.Storage) {
 	server := managerFixture()
 	defer server.Server.Close()
 
-	server.Feeds["/static.zip"] = buildZip(t, validFeed())
+	server.Feeds["/static.zip"] = testutil.BuildZip(t, validFeed())
 
 	when := time.Date(2019, 2, 1, 0, 0, 0, 0, time.UTC)
 
@@ -749,7 +733,7 @@ func testManagerLoadRealtime(t *testing.T, strg storage.Storage) {
 	server := managerFixture()
 	defer server.Server.Close()
 
-	server.Feeds["/static.zip"] = buildZip(t, validFeed())
+	server.Feeds["/static.zip"] = testutil.BuildZip(t, validFeed())
 	server.Feeds["/realtime.pb"] = validRealtimeFeed(t, time.Unix(12345, 0))
 
 	when := time.Date(2019, 2, 1, 0, 0, 0, 0, time.UTC)
@@ -885,9 +869,9 @@ func TestManager(t *testing.T) {
 			test.Test(t, s)
 
 		})
-		if PostgresConnStr != "" {
+		if testutil.PostgresConnStr != "" {
 			t.Run(fmt.Sprintf("%s_Postgres", test.Name), func(t *testing.T) {
-				s, err := storage.NewPSQLStorage(PostgresConnStr, true)
+				s, err := storage.NewPSQLStorage(testutil.PostgresConnStr, true)
 				require.NoError(t, err)
 				test.Test(t, s)
 			})

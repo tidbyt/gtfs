@@ -15,14 +15,7 @@ import (
 
 	"tidbyt.dev/gtfs/parse"
 	"tidbyt.dev/gtfs/storage"
-)
-
-// Tests of the storage implementations. The in-memory and sqlite
-// implementations are always run, while postgres require the
-// PostgresConnStr below to be set.
-
-const (
-	PostgresConnStr = "" // "postgres://postgres:mysecretpassword@localhost:5432/gtfs?sslmode=disable"
+	"tidbyt.dev/gtfs/testutil"
 )
 
 type StorageBuilder func() (storage.Storage, error)
@@ -2173,10 +2166,10 @@ func TestStorage(t *testing.T) {
 				return storage.NewSQLiteStorage(storage.SQLiteConfig{OnDisk: true, Directory: dir})
 			})
 		})
-		if PostgresConnStr != "" {
+		if testutil.PostgresConnStr != "" {
 			t.Run(fmt.Sprintf("%s Postgres", test.Name), func(t *testing.T) {
 				test.Test(t, func() (storage.Storage, error) {
-					return storage.NewPSQLStorage(PostgresConnStr, true)
+					return storage.NewPSQLStorage(testutil.PostgresConnStr, true)
 				})
 			})
 		}
