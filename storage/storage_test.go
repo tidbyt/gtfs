@@ -1690,8 +1690,6 @@ func testFeedMetadataReadWrite(t *testing.T, sb StorageBuilder) {
 		RetrievedAt:       time.Date(2018, 1, 2, 3, 4, 5, 0, time.UTC),
 		CalendarStartDate: "20190201",
 		CalendarEndDate:   "20191131",
-		FeedStartDate:     "20190101",
-		FeedEndDate:       "20191231",
 		MaxArrival:        "123456",
 		MaxDeparture:      "654321",
 	})
@@ -1703,8 +1701,6 @@ func testFeedMetadataReadWrite(t *testing.T, sb StorageBuilder) {
 		RetrievedAt:       time.Date(2018, 2, 3, 4, 5, 6, 0, time.UTC),
 		CalendarStartDate: "20190202",
 		CalendarEndDate:   "20191130",
-		FeedStartDate:     "20190102",
-		FeedEndDate:       "20191230",
 		MaxArrival:        "123457",
 		MaxDeparture:      "754321",
 	})
@@ -1719,8 +1715,6 @@ func testFeedMetadataReadWrite(t *testing.T, sb StorageBuilder) {
 	assert.True(t, time.Date(2018, 2, 3, 4, 5, 6, 0, time.UTC).Equal(feeds[0].RetrievedAt))
 	assert.Equal(t, "20190202", feeds[0].CalendarStartDate)
 	assert.Equal(t, "20191130", feeds[0].CalendarEndDate)
-	assert.Equal(t, "20190102", feeds[0].FeedStartDate)
-	assert.Equal(t, "20191230", feeds[0].FeedEndDate)
 	assert.Equal(t, "123457", feeds[0].MaxArrival)
 	assert.Equal(t, "754321", feeds[0].MaxDeparture)
 	assert.Equal(t, "feed1", feeds[1].Hash)
@@ -1728,8 +1722,6 @@ func testFeedMetadataReadWrite(t *testing.T, sb StorageBuilder) {
 	assert.True(t, time.Date(2018, 1, 2, 3, 4, 5, 0, time.UTC).Equal(feeds[1].RetrievedAt))
 	assert.Equal(t, "20190201", feeds[1].CalendarStartDate)
 	assert.Equal(t, "20191131", feeds[1].CalendarEndDate)
-	assert.Equal(t, "20190101", feeds[1].FeedStartDate)
-	assert.Equal(t, "20191231", feeds[1].FeedEndDate)
 	assert.Equal(t, "123456", feeds[1].MaxArrival)
 	assert.Equal(t, "654321", feeds[1].MaxDeparture)
 
@@ -1740,8 +1732,6 @@ func testFeedMetadataReadWrite(t *testing.T, sb StorageBuilder) {
 		RetrievedAt:       time.Date(2019, 2, 3, 4, 5, 6, 0, time.UTC),
 		CalendarStartDate: "20200202",
 		CalendarEndDate:   "20201130",
-		FeedStartDate:     "20200102",
-		FeedEndDate:       "20201230",
 		MaxArrival:        "123458",
 		MaxDeparture:      "854321",
 	})
@@ -1756,8 +1746,6 @@ func testFeedMetadataReadWrite(t *testing.T, sb StorageBuilder) {
 	assert.True(t, time.Date(2019, 2, 3, 4, 5, 6, 0, time.UTC).Equal(feeds[0].RetrievedAt))
 	assert.Equal(t, "20200202", feeds[0].CalendarStartDate)
 	assert.Equal(t, "20201130", feeds[0].CalendarEndDate)
-	assert.Equal(t, "20200102", feeds[0].FeedStartDate)
-	assert.Equal(t, "20201230", feeds[0].FeedEndDate)
 	assert.Equal(t, "123458", feeds[0].MaxArrival)
 	assert.Equal(t, "854321", feeds[0].MaxDeparture)
 }

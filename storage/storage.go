@@ -4,11 +4,6 @@ import (
 	"time"
 )
 
-// TODO:
-// - Remove UpdatedAt from FeedMetadata
-// - s/FeedMetadata/Feed/
-// - Remove FeedStartDate/FeedEndDate
-
 type Storage interface {
 	// Retrieves all feed metadata records matching the given
 	// filter.
@@ -68,8 +63,6 @@ type FeedMetadata struct {
 	Timezone          string
 	CalendarStartDate string
 	CalendarEndDate   string
-	FeedStartDate     string
-	FeedEndDate       string
 	MaxArrival        string
 	MaxDeparture      string
 }

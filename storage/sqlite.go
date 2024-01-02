@@ -58,8 +58,6 @@ CREATE TABLE IF NOT EXISTS feed (
     retrieved_at TIMESTAMP NOT NULL,
     calendar_start TEXT NOT NULL,
     calendar_end TEXT NOT NULL,
-    feed_start TEXT NOT NULL,
-    feed_end TEXT NOT NULL,
     timezone TEXT NOT NULL,
     max_arrival TEXT NOT NULL,
     max_departure TEXT NOT NULL,
@@ -103,8 +101,6 @@ SELECT
     retrieved_at,
     calendar_start,
     calendar_end,
-    feed_start,
-    feed_end,
     timezone,
     max_arrival,
     max_departure
@@ -141,8 +137,6 @@ FROM feed`
 			&feed.RetrievedAt,
 			&feed.CalendarStartDate,
 			&feed.CalendarEndDate,
-			&feed.FeedStartDate,
-			&feed.FeedEndDate,
 			&feed.Timezone,
 			&feed.MaxArrival,
 			&feed.MaxDeparture,
@@ -228,19 +222,15 @@ INSERT INTO feed (
     retrieved_at,
     calendar_start,
     calendar_end,
-    feed_start,
-    feed_end,
     timezone,
     max_arrival,
     max_departure
 )
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT (hash, url) DO UPDATE SET
     retrieved_at = excluded.retrieved_at,
     calendar_start = excluded.calendar_start,
     calendar_end = excluded.calendar_end,
-    feed_start = excluded.feed_start,
-    feed_end = excluded.feed_end,
     timezone = excluded.timezone,
     max_arrival = excluded.max_arrival,
     max_departure = excluded.max_departure
@@ -250,8 +240,6 @@ ON CONFLICT (hash, url) DO UPDATE SET
 		feed.RetrievedAt,
 		feed.CalendarStartDate,
 		feed.CalendarEndDate,
-		feed.FeedStartDate,
-		feed.FeedEndDate,
 		feed.Timezone,
 		feed.MaxArrival,
 		feed.MaxDeparture,

@@ -325,12 +325,6 @@ func feedActive(feed *storage.FeedMetadata, now time.Time) (bool, error) {
 		feedTz,
 	).Format("20060102")
 
-	if feed.FeedStartDate != "" && feed.FeedStartDate > todayThere {
-		return false, nil
-	}
-	if feed.FeedEndDate != "" && feed.FeedEndDate < todayThere {
-		return false, nil
-	}
 	if feed.CalendarStartDate > todayThere {
 		return false, nil
 	}
