@@ -56,9 +56,6 @@ func BenchmarkGTFSStatic(b *testing.B) {
 		{"NearbyStops", benchNearbyStops},
 		{"Departures", benchDepartures},
 	} {
-		b.Run(test.Name+"_memory", func(b *testing.B) {
-			test.Bench(b, "memory")
-		})
 		b.Run(test.Name+"_sqlite", func(b *testing.B) {
 			test.Bench(b, "sqlite")
 		})

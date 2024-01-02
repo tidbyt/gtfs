@@ -62,7 +62,8 @@ func fixtureSimple() map[string][]string {
 }
 
 func TestParseValidFeed(t *testing.T) {
-	s := storage.NewMemoryStorage()
+	s, err := storage.NewSQLiteStorage()
+	require.NoError(t, err)
 	writer, err := s.GetWriter("test")
 	require.NoError(t, err)
 
@@ -149,7 +150,8 @@ func TestParseMissingRequiredFile(t *testing.T) {
 		"stops.txt",
 		"stop_times.txt",
 	} {
-		s := storage.NewMemoryStorage()
+		s, err := storage.NewSQLiteStorage()
+		require.NoError(t, err)
 		writer, err := s.GetWriter("test")
 		require.NoError(t, err)
 
@@ -160,7 +162,8 @@ func TestParseMissingRequiredFile(t *testing.T) {
 	}
 
 	// Ok for calendar.txt to be missing
-	s := storage.NewMemoryStorage()
+	s, err := storage.NewSQLiteStorage()
+	require.NoError(t, err)
 	writer, err := s.GetWriter("test")
 	require.NoError(t, err)
 	files := fixtureSimple()
@@ -173,7 +176,8 @@ func TestParseMissingRequiredFile(t *testing.T) {
 	assert.Equal(t, metadata.MaxDeparture, "120000")
 
 	// Ok for calendar_dates.txt to be missing
-	s = storage.NewMemoryStorage()
+	s, err = storage.NewSQLiteStorage()
+	require.NoError(t, err)
 	writer, err = s.GetWriter("test")
 	require.NoError(t, err)
 	files = fixtureSimple()
@@ -186,7 +190,8 @@ func TestParseMissingRequiredFile(t *testing.T) {
 	assert.Equal(t, metadata.MaxDeparture, "120000")
 
 	// But not OK for both to be missing
-	s = storage.NewMemoryStorage()
+	s, err = storage.NewSQLiteStorage()
+	require.NoError(t, err)
 	writer, err = s.GetWriter("test")
 	require.NoError(t, err)
 	files = fixtureSimple()
@@ -207,7 +212,8 @@ func TestParseBrokenFile(t *testing.T) {
 		"stops.txt",
 		"stop_times.txt",
 	} {
-		s := storage.NewMemoryStorage()
+		s, err := storage.NewSQLiteStorage()
+		require.NoError(t, err)
 		writer, err := s.GetWriter("test")
 		require.NoError(t, err)
 
@@ -219,7 +225,8 @@ func TestParseBrokenFile(t *testing.T) {
 	}
 
 	// Zip file broken.
-	s := storage.NewMemoryStorage()
+	s, err := storage.NewSQLiteStorage()
+	require.NoError(t, err)
 	writer, err := s.GetWriter("test")
 	require.NoError(t, err)
 
@@ -237,7 +244,8 @@ func TestParseUnorthodoxArchiveStructure(t *testing.T) {
 	}
 	sillyZip := buildZip(t, badFiles)
 
-	s := storage.NewMemoryStorage()
+	s, err := storage.NewSQLiteStorage()
+	require.NoError(t, err)
 	writer, err := s.GetWriter("test")
 	require.NoError(t, err)
 

@@ -871,9 +871,6 @@ func TestManager(t *testing.T) {
 		{"RespectTimezones", testManagerRespectTimezones},
 		{"RefreshFeeds", testManagerRefreshFeeds},
 	} {
-		t.Run(fmt.Sprintf("%s_memory", test.Name), func(t *testing.T) {
-			test.Test(t, storage.NewMemoryStorage())
-		})
 		t.Run(fmt.Sprintf("%s_SQLiteMemory", test.Name), func(t *testing.T) {
 			s, err := storage.NewSQLiteStorage(storage.SQLiteConfig{OnDisk: false})
 			require.NoError(t, err)

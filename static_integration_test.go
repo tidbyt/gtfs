@@ -201,9 +201,6 @@ func TestStaticIntegration(t *testing.T) {
 		t.Run(test.Name+"_SQLite", func(t *testing.T) {
 			test.Test(t, "sqlite")
 		})
-		t.Run(test.Name+"_memory", func(t *testing.T) {
-			test.Test(t, "memory")
-		})
 		if PostgresConnStr != "" {
 			t.Run(test.Name+"_postgres", func(t *testing.T) {
 				test.Test(t, "postgres")

@@ -2224,11 +2224,6 @@ func TestStorage(t *testing.T) {
 		{"FeedOverwrite", testFeedOverwrite},
 		{"FeedRequest", testFeedRequest},
 	} {
-		t.Run(fmt.Sprintf("%s memory", test.Name), func(t *testing.T) {
-			test.Test(t, func() (storage.Storage, error) {
-				return storage.NewMemoryStorage(), nil
-			})
-		})
 		t.Run(fmt.Sprintf("%s SQLiteMemory", test.Name), func(t *testing.T) {
 			test.Test(t, func() (storage.Storage, error) {
 				return storage.NewSQLiteStorage()
