@@ -120,8 +120,12 @@ type FeedReader interface {
 	//
 	// Currently, stations are returned when available. Stops that
 	// lack a parent_station are also included, to accommodate
-	// feeds without stations. This behavior should probable be
+	// feeds without stations. This behavior should probably be
 	// configurable/optional.
+	//
+	// TODO: This feels really stupid. Should probably return only
+	// stops, and include parent stations if it's available. Let
+	// the caller decide what to do with that.
 	NearbyStops(lat float64, lng float64, limit int, routeTypes []RouteType) ([]Stop, error)
 }
 

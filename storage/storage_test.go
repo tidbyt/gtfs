@@ -15,14 +15,7 @@ import (
 
 	"tidbyt.dev/gtfs/parse"
 	"tidbyt.dev/gtfs/storage"
-)
-
-// Tests of the storage implementations. The in-memory and sqlite
-// implementations are always run, while postgres require the
-// PostgresConnStr below to be set.
-
-const (
-	PostgresConnStr = "" // "postgres://postgres:mysecretpassword@localhost:5432/gtfs?sslmode=disable"
+	"tidbyt.dev/gtfs/testutil"
 )
 
 type StorageBuilder func() (storage.Storage, error)
@@ -1674,6 +1667,10 @@ func testNearbyStopsWithParentStations(t *testing.T, sb StorageBuilder) {
 	assert.Equal(t, "s6", stops[5].ID)
 }
 
+func testNearbyStopsWithRouteTypeFiltering(t *testing.T, sb StorageBuilder) {
+	//TODO: implement me1
+}
+
 func testFeedMetadataReadWrite(t *testing.T, sb StorageBuilder) {
 	s, err := sb()
 	require.NoError(t, err)
@@ -2132,6 +2129,448 @@ func testFeedRequest(t *testing.T, sb StorageBuilder) {
 	assert.Equal(t, time.Date(2019, 1, 4, 0, 0, 0, 0, time.UTC), requests[0].Consumers[0].UpdatedAt)
 }
 
+// Verifies that (all) storage queries are partitioned by feed hash
+func testMultipleFeedsInStorage(t *testing.T, sb StorageBuilder) {
+	s, err := sb()
+	require.NoError(t, err)
+
+	// Write first feed into storage
+	writer, err := s.GetWriter("first-feed")
+	require.NoError(t, err)
+	firstZip := testutil.BuildZip(t, map[string][]string{
+		"agency.txt": {
+			"agency_id,agency_name,agency_url,agency_timezone",
+			"agency1,Agency 1,http://example.com,Europe/Budapest",
+		},
+		"calendar.txt": {
+			"service_id,start_date,end_date,monday",
+			"svc1,20170101,20170531,1",
+		},
+		"calendar_dates.txt": {
+			"service_id,date,exception_type",
+			"svc1,20170101,1", // Added service Sunday Jan 1st
+		},
+		"stops.txt": {
+			"stop_id,stop_name,stop_lat,stop_lon,location_type,parent_station",
+			"stop1,Stop 1,1,2,0,station_a",
+			"stop2,Stop 2,3,4,0,",
+			"station_a,Station A,5,6,1,",
+		},
+		"routes.txt": {
+			"route_id,route_short_name,route_type",
+			"r1,R1,3",
+		},
+		"trips.txt": {
+			"trip_id,route_id,service_id,direction_id",
+			"t1,r1,svc1,0",
+		},
+		"stop_times.txt": {
+			"trip_id,stop_id,stop_sequence,arrival_time,departure_time",
+			"t1,stop1,1,01:00:00,01:01:15",
+			"t1,stop2,2,01:02:00,01:03:15",
+		},
+	})
+	_, err = parse.ParseStatic(writer, firstZip)
+	require.NoError(t, err)
+
+	// Write a second (completely different) feed
+	writer, err = s.GetWriter("second-feed")
+	require.NoError(t, err)
+	secondZip := testutil.BuildZip(t, map[string][]string{
+		"agency.txt": {
+			"agency_id,agency_name,agency_url,agency_timezone",
+			"agency2,Agency 2,http://example2.com,America/New_York",
+		},
+		"calendar.txt": {
+			"service_id,start_date,end_date,tuesday",
+			"svc2,20170601,20171231,1",
+		},
+		"calendar_dates.txt": {
+			"service_id,date,exception_type",
+			"svc2,20171226,2", // Removed service Tuesday Dec 26th
+		},
+		"stops.txt": {
+			"stop_id,stop_name,stop_lat,stop_lon,location_type,parent_station",
+			"stop3,Stop 3,7,8,0,station_b",
+			"stop4,Stop 4,9,10,0,",
+			"station_b,Station B,11,12,1,",
+		},
+		"routes.txt": {
+			"route_id,route_short_name,route_type",
+			"r2,R2,3",
+		},
+		"trips.txt": {
+			"trip_id,route_id,service_id,direction_id",
+			"t2,r2,svc2,1",
+		},
+		"stop_times.txt": {
+			"trip_id,stop_id,stop_sequence,arrival_time,departure_time",
+			"t2,stop3,1,01:00:00,01:01:15",
+			"t2,stop4,2,01:02:00,01:03:15",
+		},
+	})
+	_, err = parse.ParseStatic(writer, secondZip)
+	require.NoError(t, err)
+
+	// Duplicate the second feed, but with a different identifier
+	writer, err = s.GetWriter("third-feed")
+	require.NoError(t, err)
+	_, err = parse.ParseStatic(writer, secondZip)
+	require.NoError(t, err)
+
+	// Get readers for all three
+	first, err := s.GetReader("first-feed")
+	require.NoError(t, err)
+	second, err := s.GetReader("second-feed")
+	require.NoError(t, err)
+	third, err := s.GetReader("third-feed")
+	require.NoError(t, err)
+
+	// Verify agency records
+	agencies1, err := first.Agencies()
+	require.NoError(t, err)
+	assert.Equal(t, []*storage.Agency{{
+		ID:       "agency1",
+		Name:     "Agency 1",
+		URL:      "http://example.com",
+		Timezone: "Europe/Budapest",
+	}}, agencies1)
+
+	agencies2, err := second.Agencies()
+	require.NoError(t, err)
+	assert.Equal(t, []*storage.Agency{{
+		ID:       "agency2",
+		Name:     "Agency 2",
+		URL:      "http://example2.com",
+		Timezone: "America/New_York",
+	}}, agencies2)
+
+	agencies3, err := third.Agencies()
+	require.NoError(t, err)
+	assert.Equal(t, agencies2, agencies3)
+
+	// Verify stops
+	stops1, err := first.Stops()
+	require.NoError(t, err)
+	sort.Slice(stops1, func(i, j int) bool { return stops1[i].ID < stops1[j].ID })
+	assert.Equal(t, []*storage.Stop{{
+		ID:            "station_a",
+		Name:          "Station A",
+		Lat:           5,
+		Lon:           6,
+		LocationType:  1,
+		ParentStation: "",
+	}, {
+		ID:            "stop1",
+		Name:          "Stop 1",
+		Lat:           1,
+		Lon:           2,
+		LocationType:  0,
+		ParentStation: "station_a",
+	}, {
+		ID:            "stop2",
+		Name:          "Stop 2",
+		Lat:           3,
+		Lon:           4,
+		LocationType:  0,
+		ParentStation: "",
+	}}, stops1)
+
+	stops2, err := second.Stops()
+	require.NoError(t, err)
+	sort.Slice(stops2, func(i, j int) bool { return stops2[i].ID < stops2[j].ID })
+	assert.Equal(t, []*storage.Stop{{
+		ID:            "station_b",
+		Name:          "Station B",
+		Lat:           11,
+		Lon:           12,
+		LocationType:  1,
+		ParentStation: "",
+	}, {
+		ID:            "stop3",
+		Name:          "Stop 3",
+		Lat:           7,
+		Lon:           8,
+		LocationType:  0,
+		ParentStation: "station_b",
+	}, {
+		ID:            "stop4",
+		Name:          "Stop 4",
+		Lat:           9,
+		Lon:           10,
+		LocationType:  0,
+		ParentStation: "",
+	}}, stops2)
+
+	stops3, err := third.Stops()
+	require.NoError(t, err)
+	sort.Slice(stops3, func(i, j int) bool { return stops3[i].ID < stops3[j].ID })
+	assert.Equal(t, stops2, stops3)
+
+	// Routes
+	routes1, err := first.Routes()
+	require.NoError(t, err)
+	assert.Equal(t, []*storage.Route{{
+		ID:        "r1",
+		ShortName: "R1",
+		Type:      3,
+		Color:     "FFFFFF",
+		TextColor: "000000",
+	}}, routes1)
+
+	routes2, err := second.Routes()
+	require.NoError(t, err)
+	assert.Equal(t, []*storage.Route{{
+		ID:        "r2",
+		ShortName: "R2",
+		Type:      3,
+		Color:     "FFFFFF",
+		TextColor: "000000",
+	}}, routes2)
+
+	routes3, err := third.Routes()
+	require.NoError(t, err)
+	assert.Equal(t, routes2, routes3)
+
+	// Trips
+	trips1, err := first.Trips()
+	require.NoError(t, err)
+	assert.Equal(t, []*storage.Trip{{
+		ID:        "t1",
+		ServiceID: "svc1",
+		RouteID:   "r1",
+	}}, trips1)
+
+	trips2, err := second.Trips()
+	require.NoError(t, err)
+	assert.Equal(t, []*storage.Trip{{
+		ID:          "t2",
+		ServiceID:   "svc2",
+		RouteID:     "r2",
+		DirectionID: 1,
+	}}, trips2)
+
+	trips3, err := third.Trips()
+	require.NoError(t, err)
+	assert.Equal(t, trips2, trips3)
+
+	// StopTimes
+	stopTimes1, err := first.StopTimes()
+	require.NoError(t, err)
+	assert.Equal(t, []*storage.StopTime{{
+		TripID:       "t1",
+		StopID:       "stop1",
+		StopSequence: 1,
+		Arrival:      "010000",
+		Departure:    "010115",
+	}, {
+		TripID:       "t1",
+		StopID:       "stop2",
+		StopSequence: 2,
+		Arrival:      "010200",
+		Departure:    "010315",
+	}}, stopTimes1)
+
+	stopTimes2, err := second.StopTimes()
+	require.NoError(t, err)
+	assert.Equal(t, []*storage.StopTime{{
+		TripID:       "t2",
+		StopID:       "stop3",
+		StopSequence: 1,
+		Arrival:      "010000",
+		Departure:    "010115",
+	}, {
+		TripID:       "t2",
+		StopID:       "stop4",
+		StopSequence: 2,
+		Arrival:      "010200",
+		Departure:    "010315",
+	}}, stopTimes2)
+
+	stopTimes3, err := third.StopTimes()
+	require.NoError(t, err)
+	assert.Equal(t, stopTimes2, stopTimes3)
+
+	// Calendar
+	calendar1, err := first.Calendars()
+	require.NoError(t, err)
+	assert.Equal(t, []*storage.Calendar{{
+		ServiceID: "svc1",
+		Weekday:   1 << time.Monday,
+		StartDate: "20170101",
+		EndDate:   "20170531",
+	}}, calendar1)
+
+	calendar2, err := second.Calendars()
+	require.NoError(t, err)
+	assert.Equal(t, []*storage.Calendar{{
+		ServiceID: "svc2",
+		Weekday:   1 << time.Tuesday,
+		StartDate: "20170601",
+		EndDate:   "20171231",
+	}}, calendar2)
+
+	calendar3, err := third.Calendars()
+	require.NoError(t, err)
+	assert.Equal(t, calendar2, calendar3)
+
+	// CalendarDates
+	calendarDates1, err := first.CalendarDates()
+	require.NoError(t, err)
+	assert.Equal(t, []*storage.CalendarDate{{
+		ServiceID:     "svc1",
+		Date:          "20170101",
+		ExceptionType: 1,
+	}}, calendarDates1)
+
+	calendarDates2, err := second.CalendarDates()
+	require.NoError(t, err)
+	assert.Equal(t, []*storage.CalendarDate{{
+		ServiceID:     "svc2",
+		Date:          "20171226",
+		ExceptionType: 2,
+	}}, calendarDates2)
+
+	calendarDates3, err := third.CalendarDates()
+	require.NoError(t, err)
+	assert.Equal(t, calendarDates2, calendarDates3)
+
+	// RouteDirections
+	routeDirections1, err := first.RouteDirections("stop1")
+	require.NoError(t, err)
+	assert.Equal(t, []*storage.RouteDirection{{
+		StopID:      "stop1",
+		RouteID:     "r1",
+		DirectionID: 0,
+		Headsigns:   []string{""},
+	}}, routeDirections1)
+
+	routeDirections2, err := second.RouteDirections("stop3")
+	require.NoError(t, err)
+	assert.Equal(t, []*storage.RouteDirection{{
+		StopID:      "stop3",
+		RouteID:     "r2",
+		DirectionID: 1,
+		Headsigns:   []string{""},
+	}}, routeDirections2)
+
+	// NearbyStops without route type
+	nearbyStops1, err := first.NearbyStops(1, 2, 1, nil)
+	require.NoError(t, err)
+	assert.Equal(t, []storage.Stop{{
+		ID:   "stop2",
+		Name: "Stop 2",
+		Lat:  3,
+		Lon:  4,
+	}}, nearbyStops1)
+
+	nearbyStops2, err := second.NearbyStops(3, 4, 1, nil)
+	require.NoError(t, err)
+	assert.Equal(t, []storage.Stop{{
+		ID:   "stop4",
+		Name: "Stop 4",
+		Lat:  9,
+		Lon:  10,
+	}}, nearbyStops2)
+
+	nearbyStops3, err := third.NearbyStops(3, 4, 1, nil)
+	require.NoError(t, err)
+	assert.Equal(t, nearbyStops2, nearbyStops3)
+
+	// NearbyStops with route type
+	nearbyStopsRoute1, err := first.NearbyStops(1, 2, 1, []storage.RouteType{storage.RouteTypeBus})
+	require.NoError(t, err)
+	assert.Equal(t, nearbyStops1, nearbyStopsRoute1)
+
+	nearbyStopsRoute2, err := second.NearbyStops(3, 4, 1, []storage.RouteType{storage.RouteTypeBus})
+	require.NoError(t, err)
+	assert.Equal(t, nearbyStops2, nearbyStopsRoute2)
+
+	nearbyStopsRoute3, err := third.NearbyStops(3, 4, 1, []storage.RouteType{storage.RouteTypeBus})
+	require.NoError(t, err)
+	assert.Equal(t, nearbyStopsRoute2, nearbyStopsRoute3)
+
+	// StopTimeEvents
+	events1, err := first.StopTimeEvents(storage.StopTimeEventFilter{})
+	require.NoError(t, err)
+	require.Equal(t, 2, len(events1))
+	assert.Equal(t, &storage.StopTimeEvent{
+		StopTime: &storage.StopTime{
+			TripID:       "t1",
+			StopID:       "stop1",
+			StopSequence: 1,
+			Arrival:      "010000",
+			Departure:    "010115",
+		},
+		Trip: &storage.Trip{
+			ID:        "t1",
+			RouteID:   "r1",
+			ServiceID: "svc1",
+		},
+		Route: &storage.Route{
+			ID:        "r1",
+			Type:      storage.RouteTypeBus,
+			ShortName: "R1",
+			Color:     "FFFFFF",
+			TextColor: "000000",
+		},
+		Stop: &storage.Stop{
+			ID:            "stop1",
+			Name:          "Stop 1",
+			Lat:           1,
+			Lon:           2,
+			ParentStation: "station_a",
+		},
+		ParentStation: &storage.Stop{
+			ID:           "station_a",
+			Name:         "Station A",
+			Lat:          5,
+			Lon:          6,
+			LocationType: 1,
+		},
+	}, events1[0])
+
+	events2, err := second.StopTimeEvents(storage.StopTimeEventFilter{DirectionID: -1})
+	require.NoError(t, err)
+	require.Equal(t, 2, len(events2))
+	assert.Equal(t, &storage.StopTimeEvent{
+		StopTime: &storage.StopTime{
+			TripID:       "t2",
+			StopID:       "stop3",
+			StopSequence: 1,
+			Arrival:      "010000",
+			Departure:    "010115",
+		},
+		Trip: &storage.Trip{
+			ID:          "t2",
+			RouteID:     "r2",
+			ServiceID:   "svc2",
+			DirectionID: 1,
+		},
+		Route: &storage.Route{
+			ID:        "r2",
+			Type:      storage.RouteTypeBus,
+			ShortName: "R2",
+			Color:     "FFFFFF",
+			TextColor: "000000",
+		},
+		Stop: &storage.Stop{
+			ID:            "stop3",
+			Name:          "Stop 3",
+			Lat:           7,
+			Lon:           8,
+			ParentStation: "station_b",
+		},
+		ParentStation: &storage.Stop{
+			ID:           "station_b",
+			Name:         "Station B",
+			Lat:          11,
+			Lon:          12,
+			LocationType: 1,
+		},
+	}, events2[0])
+}
+
 func TestStorage(t *testing.T) {
 	for _, test := range []struct {
 		Name string
@@ -2155,10 +2594,12 @@ func TestStorage(t *testing.T) {
 		{"RouteDirections", testRouteDirections},
 		{"NearbyStops", testNearbyStops},
 		{"NearbyStopsWithParentStations", testNearbyStopsWithParentStations},
+		{"NearbyStopsWithRouteTypeFiltering", testNearbyStopsWithRouteTypeFiltering},
 		{"FeedMetadataReadWrite", testFeedMetadataReadWrite},
 		{"FeedMetadataFiltering", testFeedMetadataFiltering},
 		{"FeedOverwrite", testFeedOverwrite},
 		{"FeedRequest", testFeedRequest},
+		{"MultipleFeedsInStorage", testMultipleFeedsInStorage},
 	} {
 		t.Run(fmt.Sprintf("%s SQLiteMemory", test.Name), func(t *testing.T) {
 			test.Test(t, func() (storage.Storage, error) {
@@ -2173,10 +2614,10 @@ func TestStorage(t *testing.T) {
 				return storage.NewSQLiteStorage(storage.SQLiteConfig{OnDisk: true, Directory: dir})
 			})
 		})
-		if PostgresConnStr != "" {
+		if testutil.PostgresConnStr != "" {
 			t.Run(fmt.Sprintf("%s Postgres", test.Name), func(t *testing.T) {
 				test.Test(t, func() (storage.Storage, error) {
-					return storage.NewPSQLStorage(PostgresConnStr, true)
+					return storage.NewPSQLStorage(testutil.PostgresConnStr, true)
 				})
 			})
 		}

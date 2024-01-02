@@ -9,6 +9,7 @@ import (
 
 	"tidbyt.dev/gtfs"
 	"tidbyt.dev/gtfs/storage"
+	"tidbyt.dev/gtfs/testutil"
 )
 
 func testGTFSStaticIntegrationNearbyStops(t *testing.T, backend string) {
@@ -17,7 +18,7 @@ func testGTFSStaticIntegrationNearbyStops(t *testing.T, backend string) {
 	}
 
 	// This is a giant GTFS file from the MTA
-	g := GTFSTest_LoadStaticFile(t, backend, "testdata/mta_static.zip")
+	g := testutil.LoadStaticFile(t, backend, "testdata/mta_static.zip")
 
 	// The 4 nearest stops for 544 Park Ave, BK. There are other
 	// stops with the same coordinates, but they all have
@@ -71,7 +72,7 @@ func testGTFSStaticIntegrationDepartures(t *testing.T, backend string) {
 	}
 
 	// This is a giant GTFS file from the MTA
-	g := GTFSTest_LoadStaticFile(t, backend, "testdata/mta_static.zip")
+	g := testutil.LoadStaticFile(t, backend, "testdata/mta_static.zip")
 
 	// Let's look at the G33S stop, also known as "Bedford -
 	// Nostrand Avs". Between 22:50 and 23:10 there are are 6
@@ -201,7 +202,7 @@ func TestStaticIntegration(t *testing.T) {
 		t.Run(test.Name+"_SQLite", func(t *testing.T) {
 			test.Test(t, "sqlite")
 		})
-		if PostgresConnStr != "" {
+		if testutil.PostgresConnStr != "" {
 			t.Run(test.Name+"_postgres", func(t *testing.T) {
 				test.Test(t, "postgres")
 			})

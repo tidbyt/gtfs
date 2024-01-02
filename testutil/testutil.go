@@ -1,10 +1,6 @@
-package gtfs_test
+package testutil
 
 // Helpers and configuration for tests.
-//
-// Many tests in this package run against the in-memory and sqlite
-// backends by default. If PostgresConnStr is set, they'll also run
-// against postgres.
 
 import (
 	"archive/zip"
@@ -24,7 +20,7 @@ const (
 	PostgresConnStr = "" // "postgres://postgres:mysecretpassword@localhost:5432/gtfs?sslmode=disable"
 )
 
-func GFSTest_BuildStorage(t testing.TB, backend string) storage.Storage {
+func BuildStorage(t testing.TB, backend string) storage.Storage {
 	var s storage.Storage
 	var err error
 	if backend == "sqlite" {
@@ -39,14 +35,14 @@ func GFSTest_BuildStorage(t testing.TB, backend string) storage.Storage {
 	return s
 }
 
-func GTFSTest_LoadStatic(t testing.TB, backend string, buf *bytes.Buffer) *gtfs.Static {
-	s := GFSTest_BuildStorage(t, backend)
+func LoadStatic(t testing.TB, backend string, buf []byte) *gtfs.Static {
+	s := BuildStorage(t, backend)
 
 	// Parse buf into storage
 	feedWriter, err := s.GetWriter("test")
 	require.NoError(t, err)
 
-	metadata, err := parse.ParseStatic(feedWriter, buf.Bytes())
+	metadata, err := parse.ParseStatic(feedWriter, buf)
 	require.NoError(t, err)
 
 	require.NoError(t, feedWriter.Close())
@@ -61,14 +57,14 @@ func GTFSTest_LoadStatic(t testing.TB, backend string, buf *bytes.Buffer) *gtfs.
 	return static
 }
 
-func GTFSTest_LoadStaticFile(t testing.TB, backend string, filename string) *gtfs.Static {
+func LoadStaticFile(t testing.TB, backend string, filename string) *gtfs.Static {
 	buf, err := ioutil.ReadFile(filename)
 	require.NoError(t, err)
 
-	return GTFSTest_LoadStatic(t, backend, bytes.NewBuffer(buf))
+	return LoadStatic(t, backend, buf)
 }
 
-func GTFSTest_BuildStatic(
+func BuildStatic(
 	t testing.TB,
 	backend string,
 	files map[string][]string,
@@ -94,7 +90,16 @@ func GTFSTest_BuildStatic(
 		files["stop_times.txt"] = []string{"stop_id"}
 	}
 
-	// Create zip
+	buf := BuildZip(t, files)
+
+	return LoadStatic(t, backend, buf)
+}
+
+func BuildZip(
+	t testing.TB,
+	files map[string][]string,
+) []byte {
+
 	buf := &bytes.Buffer{}
 	w := zip.NewWriter(buf)
 	for filename, content := range files {
@@ -105,5 +110,5 @@ func GTFSTest_BuildStatic(
 	}
 	require.NoError(t, w.Close())
 
-	return GTFSTest_LoadStatic(t, backend, buf)
+	return buf.Bytes()
 }

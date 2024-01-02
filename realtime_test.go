@@ -13,6 +13,7 @@ import (
 
 	"tidbyt.dev/gtfs"
 	"tidbyt.dev/gtfs/storage"
+	"tidbyt.dev/gtfs/testutil"
 )
 
 // Helpers for building gtfs-realtime feeds
@@ -122,7 +123,7 @@ func buildFeed(t *testing.T, tripUpdates []TripUpdate) [][]byte {
 // A simple Static fixture. Trips t1 and t2 cover the same three
 // stops s1-s3. Trip t3 covers z1-z2. Full service all days of 2020.
 func SimpleStaticFixture(t *testing.T) *gtfs.Static {
-	static := GTFSTest_BuildStatic(t, "sqlite", map[string][]string{
+	static := testutil.BuildStatic(t, "sqlite", map[string][]string{
 		"calendar.txt": {
 			"service_id,start_date,end_date,monday,tuesday,wednesday,thursday,friday,saturday,sunday",
 			"everyday,20200101,20210101,1,1,1,1,1,1,1",
@@ -811,7 +812,7 @@ func TestRealtimeTimeWindowing(t *testing.T) {
 func TestRealtimeTripWithLoop(t *testing.T) {
 	// This static schedule has t1 running from s1 to s2, and then
 	// 3 loops s3-s5, and finally end of the trip at s3.
-	static := GTFSTest_BuildStatic(t, "sqlite", map[string][]string{
+	static := testutil.BuildStatic(t, "sqlite", map[string][]string{
 		// A weekdays only schedule
 		"calendar.txt": {
 			"service_id,start_date,end_date,monday,tuesday,wednesday,thursday,friday,saturday,sunday",
@@ -986,7 +987,7 @@ func TestRealtimeDepartureFiltering(t *testing.T) {
 	// Two routes: bus going center to south and rail going center
 	// to east. Each route has two trips: one heading out, one
 	// heading in.
-	static := GTFSTest_BuildStatic(t, "sqlite", map[string][]string{
+	static := testutil.BuildStatic(t, "sqlite", map[string][]string{
 		// A weekdays only schedule
 		"calendar.txt": {
 			"service_id,start_date,end_date,monday,tuesday,wednesday,thursday,friday,saturday,sunday",
@@ -1446,7 +1447,7 @@ func TestRealtimeArrivalRecovery(t *testing.T) {
 
 func TestRealtimeDelayCrossingMidnight(t *testing.T) {
 	// A single trip passing through s1...s4 over midnight.
-	static := GTFSTest_BuildStatic(t, "sqlite", map[string][]string{
+	static := testutil.BuildStatic(t, "sqlite", map[string][]string{
 		"calendar.txt": {
 			"service_id,start_date,end_date,monday,tuesday,wednesday,thursday,friday,saturday,sunday",
 			"everyday,20200101,20210101,1,1,1,1,1,1,1",
@@ -1576,7 +1577,7 @@ func TestRealtimeDelayCrossingMidnight(t *testing.T) {
 
 func TestRealtimeDelayCrossingDSTBoundaryOnCurrentDay(t *testing.T) {
 	// Delays on trips crossing a DST boundary
-	static := GTFSTest_BuildStatic(t, "sqlite", map[string][]string{
+	static := testutil.BuildStatic(t, "sqlite", map[string][]string{
 		"agency.txt": {
 			"agency_id,agency_name,agency_url,agency_timezone",
 			"a,A,http://a.com/,America/New_York",
@@ -1814,7 +1815,7 @@ func TestRealtimeDelayCrossingDSTBoundaryOnCurrentDay(t *testing.T) {
 func TestRealtimeDelayCrossingDSTBoundaryFromPreviousDay(t *testing.T) {
 	// Delays on trips crossing a DST boundary on the _following
 	// day_ (via scheduled trips running past 24:00).
-	static := GTFSTest_BuildStatic(t, "sqlite", map[string][]string{
+	static := testutil.BuildStatic(t, "sqlite", map[string][]string{
 		"agency.txt": {
 			"agency_id,agency_name,agency_url,agency_timezone",
 			"a,A,http://a.com/,America/New_York",
