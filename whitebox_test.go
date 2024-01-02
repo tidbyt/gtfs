@@ -116,7 +116,31 @@ func TestStaticRangePerDate(t *testing.T) {
 			},
 		},
 
-		// TODO: write a test of overflow with DST change
+		{
+			"overflow with change to standard time",
+			time.Date(2023, 11, 5, 00, 59, 0, 0, tzET),
+			2 * time.Minute,
+			29 * time.Hour,
+			[]span{
+				{"20231104", "245900", "250100"},
+				{"20231105", "", "000100"},
+			},
+		},
+
+		{
+			"overflow with change to daylight savings",
+			time.Date(2023, 3, 12, 00, 59, 0, 0, tzET),
+			2 * time.Minute,
+			29 * time.Hour,
+			[]span{
+				{"20230311", "245900", "250100"},
+				{"20230312", "015900", "020100"},
+			},
+		},
+
+		// NOTE: DST changes are really annoying. Very likely
+		// these tests are missing some edge cases.
+
 	} {
 		t.Run(tc.Name, func(t *testing.T) {
 			spans := rangePerDate(tc.Start, tc.Window, tc.Max)

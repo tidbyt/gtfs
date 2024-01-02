@@ -97,6 +97,9 @@ func gtfsDate(offset time.Duration) string {
 	h := int(offset.Hours())
 	m := int(offset.Minutes()) - h*60
 	s := int(offset.Seconds()) - h*3600 - m*60
+	if h < 0 || m < 0 || s < 0 {
+		return ""
+	}
 	return fmt.Sprintf("%02d%02d%02d", h, m, s)
 }
 
