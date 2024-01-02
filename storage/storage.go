@@ -6,7 +6,6 @@ import (
 
 // TODO:
 // - Remove UpdatedAt from FeedMetadata
-// - s/sha256/hash/
 // - s/FeedMetadata/Feed/
 // - Remove FeedStartDate/FeedEndDate
 
@@ -30,10 +29,10 @@ type Storage interface {
 	WriteFeedRequest(req FeedRequest) error
 
 	// Gets a reader for the feed with the given hash.
-	GetReader(feed string) (FeedReader, error)
+	GetReader(hash string) (FeedReader, error)
 
 	// Gets a writer for the feed with the given hash.
-	GetWriter(feed string) (FeedWriter, error)
+	GetWriter(hash string) (FeedWriter, error)
 }
 
 type ListFeedsFilter struct {
@@ -41,7 +40,7 @@ type ListFeedsFilter struct {
 	URL string
 
 	// If set, only include feeds with the given hash.
-	SHA256 string
+	Hash string
 }
 
 // A request to download a static GTFS feed at the given URL. The same
@@ -64,7 +63,7 @@ type FeedConsumer struct {
 // accessed via FeedReader.
 type FeedMetadata struct {
 	URL               string
-	SHA256            string
+	Hash              string
 	RetrievedAt       time.Time
 	Timezone          string
 	CalendarStartDate string

@@ -1685,7 +1685,7 @@ func testFeedMetadataReadWrite(t *testing.T, sb StorageBuilder) {
 
 	// Write two feeds
 	err = s.WriteFeedMetadata(&storage.FeedMetadata{
-		SHA256:            "feed1",
+		Hash:              "feed1",
 		URL:               "https://gtfs/feed1",
 		RetrievedAt:       time.Date(2018, 1, 2, 3, 4, 5, 0, time.UTC),
 		CalendarStartDate: "20190201",
@@ -1698,7 +1698,7 @@ func testFeedMetadataReadWrite(t *testing.T, sb StorageBuilder) {
 	assert.NoError(t, err)
 
 	err = s.WriteFeedMetadata(&storage.FeedMetadata{
-		SHA256:            "feed2",
+		Hash:              "feed2",
 		URL:               "https://gtfs/feed2",
 		RetrievedAt:       time.Date(2018, 2, 3, 4, 5, 6, 0, time.UTC),
 		CalendarStartDate: "20190202",
@@ -1714,7 +1714,7 @@ func testFeedMetadataReadWrite(t *testing.T, sb StorageBuilder) {
 	feeds, err = s.ListFeeds(storage.ListFeedsFilter{})
 	require.NoError(t, err)
 	assert.Equal(t, 2, len(feeds))
-	assert.Equal(t, "feed2", feeds[0].SHA256)
+	assert.Equal(t, "feed2", feeds[0].Hash)
 	assert.Equal(t, "https://gtfs/feed2", feeds[0].URL)
 	assert.True(t, time.Date(2018, 2, 3, 4, 5, 6, 0, time.UTC).Equal(feeds[0].RetrievedAt))
 	assert.Equal(t, "20190202", feeds[0].CalendarStartDate)
@@ -1723,7 +1723,7 @@ func testFeedMetadataReadWrite(t *testing.T, sb StorageBuilder) {
 	assert.Equal(t, "20191230", feeds[0].FeedEndDate)
 	assert.Equal(t, "123457", feeds[0].MaxArrival)
 	assert.Equal(t, "754321", feeds[0].MaxDeparture)
-	assert.Equal(t, "feed1", feeds[1].SHA256)
+	assert.Equal(t, "feed1", feeds[1].Hash)
 	assert.Equal(t, "https://gtfs/feed1", feeds[1].URL)
 	assert.True(t, time.Date(2018, 1, 2, 3, 4, 5, 0, time.UTC).Equal(feeds[1].RetrievedAt))
 	assert.Equal(t, "20190201", feeds[1].CalendarStartDate)
@@ -1735,7 +1735,7 @@ func testFeedMetadataReadWrite(t *testing.T, sb StorageBuilder) {
 
 	// Overwrite one of the feeds
 	err = s.WriteFeedMetadata(&storage.FeedMetadata{
-		SHA256:            "feed2",
+		Hash:              "feed2",
 		URL:               "https://gtfs/feed2",
 		RetrievedAt:       time.Date(2019, 2, 3, 4, 5, 6, 0, time.UTC),
 		CalendarStartDate: "20200202",
@@ -1751,7 +1751,7 @@ func testFeedMetadataReadWrite(t *testing.T, sb StorageBuilder) {
 	feeds, err = s.ListFeeds(storage.ListFeedsFilter{})
 	require.NoError(t, err)
 	assert.Equal(t, 2, len(feeds))
-	assert.Equal(t, "feed2", feeds[0].SHA256)
+	assert.Equal(t, "feed2", feeds[0].Hash)
 	assert.Equal(t, "https://gtfs/feed2", feeds[0].URL)
 	assert.True(t, time.Date(2019, 2, 3, 4, 5, 6, 0, time.UTC).Equal(feeds[0].RetrievedAt))
 	assert.Equal(t, "20200202", feeds[0].CalendarStartDate)
@@ -1762,35 +1762,35 @@ func testFeedMetadataReadWrite(t *testing.T, sb StorageBuilder) {
 	assert.Equal(t, "854321", feeds[0].MaxDeparture)
 }
 
-// FeedMetadata in storage is keyed on URL and SHA256
+// FeedMetadata in storage is keyed on URL and Hash
 func testFeedMetadataFiltering(t *testing.T, sb StorageBuilder) {
 	s, err := sb()
 	require.NoError(t, err)
 
 	// Write some feeds
 	require.NoError(t, s.WriteFeedMetadata(&storage.FeedMetadata{
-		URL:    "https://gtfs/feed1",
-		SHA256: "deadbeef",
+		URL:  "https://gtfs/feed1",
+		Hash: "deadbeef",
 	}))
 	require.NoError(t, s.WriteFeedMetadata(&storage.FeedMetadata{
-		URL:    "https://gtfs/feed2",
-		SHA256: "cafed00d",
+		URL:  "https://gtfs/feed2",
+		Hash: "cafed00d",
 	}))
 	require.NoError(t, s.WriteFeedMetadata(&storage.FeedMetadata{
-		URL:    "https://gtfs/feed3",
-		SHA256: "1337ca7",
+		URL:  "https://gtfs/feed3",
+		Hash: "1337ca7",
 	}))
 	require.NoError(t, s.WriteFeedMetadata(&storage.FeedMetadata{
-		URL:    "https://gtfs/feed4",
-		SHA256: "deadbeef", // same as feed 1
+		URL:  "https://gtfs/feed4",
+		Hash: "deadbeef", // same as feed 1
 	}))
 	require.NoError(t, s.WriteFeedMetadata(&storage.FeedMetadata{
-		URL:    "https://gtfs/feed4", // second occurrence of feed 4
-		SHA256: "feedface",
+		URL:  "https://gtfs/feed4", // second occurrence of feed 4
+		Hash: "feedface",
 	}))
 	require.NoError(t, s.WriteFeedMetadata(&storage.FeedMetadata{
-		URL:    "https://gtfs/feed5",
-		SHA256: "", //blank
+		URL:  "https://gtfs/feed5",
+		Hash: "", //blank
 	}))
 
 	// Read them all back
@@ -1801,20 +1801,20 @@ func testFeedMetadataFiltering(t *testing.T, sb StorageBuilder) {
 		if feeds[i].URL != feeds[j].URL {
 			return feeds[i].URL < feeds[j].URL
 		}
-		return feeds[i].SHA256 < feeds[j].SHA256
+		return feeds[i].Hash < feeds[j].Hash
 	})
 	assert.Equal(t, "https://gtfs/feed1", feeds[0].URL)
-	assert.Equal(t, "deadbeef", feeds[0].SHA256)
+	assert.Equal(t, "deadbeef", feeds[0].Hash)
 	assert.Equal(t, "https://gtfs/feed2", feeds[1].URL)
-	assert.Equal(t, "cafed00d", feeds[1].SHA256)
+	assert.Equal(t, "cafed00d", feeds[1].Hash)
 	assert.Equal(t, "https://gtfs/feed3", feeds[2].URL)
-	assert.Equal(t, "1337ca7", feeds[2].SHA256)
+	assert.Equal(t, "1337ca7", feeds[2].Hash)
 	assert.Equal(t, "https://gtfs/feed4", feeds[3].URL)
-	assert.Equal(t, "deadbeef", feeds[3].SHA256)
+	assert.Equal(t, "deadbeef", feeds[3].Hash)
 	assert.Equal(t, "https://gtfs/feed4", feeds[4].URL)
-	assert.Equal(t, "feedface", feeds[4].SHA256)
+	assert.Equal(t, "feedface", feeds[4].Hash)
 	assert.Equal(t, "https://gtfs/feed5", feeds[5].URL)
-	assert.Equal(t, "", feeds[5].SHA256)
+	assert.Equal(t, "", feeds[5].Hash)
 
 	// Filter by URL
 	feeds, err = s.ListFeeds(storage.ListFeedsFilter{
@@ -1823,7 +1823,7 @@ func testFeedMetadataFiltering(t *testing.T, sb StorageBuilder) {
 	require.NoError(t, err)
 	assert.Equal(t, 1, len(feeds))
 	assert.Equal(t, "https://gtfs/feed1", feeds[0].URL)
-	assert.Equal(t, "deadbeef", feeds[0].SHA256)
+	assert.Equal(t, "deadbeef", feeds[0].Hash)
 
 	feeds, err = s.ListFeeds(storage.ListFeedsFilter{
 		URL: "https://gtfs/feed5",
@@ -1831,11 +1831,11 @@ func testFeedMetadataFiltering(t *testing.T, sb StorageBuilder) {
 	require.NoError(t, err)
 	assert.Equal(t, 1, len(feeds))
 	assert.Equal(t, "https://gtfs/feed5", feeds[0].URL)
-	assert.Equal(t, "", feeds[0].SHA256)
+	assert.Equal(t, "", feeds[0].Hash)
 
-	// Filter by SHA256
+	// Filter by Hash
 	feeds, err = s.ListFeeds(storage.ListFeedsFilter{
-		SHA256: "deadbeef",
+		Hash: "deadbeef",
 	})
 	require.NoError(t, err)
 	assert.Equal(t, 2, len(feeds))
@@ -1843,9 +1843,9 @@ func testFeedMetadataFiltering(t *testing.T, sb StorageBuilder) {
 		return feeds[i].URL < feeds[j].URL
 	})
 	assert.Equal(t, "https://gtfs/feed1", feeds[0].URL)
-	assert.Equal(t, "deadbeef", feeds[0].SHA256)
+	assert.Equal(t, "deadbeef", feeds[0].Hash)
 	assert.Equal(t, "https://gtfs/feed4", feeds[1].URL)
-	assert.Equal(t, "deadbeef", feeds[1].SHA256)
+	assert.Equal(t, "deadbeef", feeds[1].Hash)
 }
 
 func testFeedOverwrite(t *testing.T, sb StorageBuilder) {

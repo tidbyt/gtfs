@@ -150,7 +150,7 @@ func (m *Manager) Refresh(ctx context.Context) error {
 		return fmt.Errorf("listing feeds: %w", err)
 	}
 	for _, feed := range feeds {
-		feedsByHash[feed.SHA256] = append(feedsByHash[feed.SHA256], feed)
+		feedsByHash[feed.Hash] = append(feedsByHash[feed.Hash], feed)
 	}
 
 	// Check all requests for URLs in need of refreshing
@@ -256,7 +256,7 @@ func (m *Manager) processRequest(
 		}
 
 		// And write the metadata
-		metadata.SHA256 = hash
+		metadata.Hash = hash
 		metadata.URL = req.URL
 		metadata.RetrievedAt = time.Now().UTC()
 
@@ -295,7 +295,7 @@ func (m *Manager) loadMostRecentActive(feeds []*storage.FeedMetadata, when time.
 		}
 
 		// This is the one!
-		reader, err := m.storage.GetReader(feeds[i].SHA256)
+		reader, err := m.storage.GetReader(feeds[i].Hash)
 		if err != nil {
 			return nil, fmt.Errorf("getting reader: %w", err)
 		}
