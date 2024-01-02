@@ -101,7 +101,6 @@ SELECT
     sha256,
     url,
     retrieved_at,
-    updated_at,
     calendar_start,
     calendar_end,
     feed_start,
@@ -144,7 +143,6 @@ FROM feed`
 			&feed.SHA256,
 			&feed.URL,
 			&feed.RetrievedAt,
-			&feed.UpdatedAt,
 			&feed.CalendarStartDate,
 			&feed.CalendarEndDate,
 			&feed.FeedStartDate,
@@ -172,7 +170,6 @@ INSERT INTO feed (
     sha256,
     url,
     retrieved_at,
-    updated_at,
     calendar_start,
     calendar_end,
     feed_start,
@@ -181,10 +178,9 @@ INSERT INTO feed (
     max_arrival,
     max_departure
 )
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 ON CONFLICT (sha256, url) DO UPDATE SET
     retrieved_at = excluded.retrieved_at,
-    updated_at = excluded.updated_at,
     calendar_start = excluded.calendar_start,
     calendar_end = excluded.calendar_end,
     feed_start = excluded.feed_start,
@@ -196,7 +192,6 @@ ON CONFLICT (sha256, url) DO UPDATE SET
 		feed.SHA256,
 		feed.URL,
 		feed.RetrievedAt,
-		feed.UpdatedAt,
 		feed.CalendarStartDate,
 		feed.CalendarEndDate,
 		feed.FeedStartDate,

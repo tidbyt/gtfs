@@ -68,7 +68,6 @@ func (s *MemoryStorage) WriteFeedMetadata(feed *FeedMetadata) error {
 }
 
 func (s *MemoryStorage) WriteFeedRequest(req FeedRequest) error {
-	s.Requests[memoryRequestKey{req.URL, req.Consumer}] = req
 	return nil
 }
 
