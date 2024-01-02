@@ -2304,6 +2304,7 @@ func testMultipleFeedsInStorage(t *testing.T, sb StorageBuilder) {
 
 	stops3, err := third.Stops()
 	require.NoError(t, err)
+	sort.Slice(stops3, func(i, j int) bool { return stops3[i].ID < stops3[j].ID })
 	assert.Equal(t, stops2, stops3)
 
 	// Routes
