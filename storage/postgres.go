@@ -67,17 +67,15 @@ DROP TABLE IF EXISTS trips;
 	// Create feed table if needed
 	_, err = db.Exec(`
 CREATE TABLE IF NOT EXISTS feed (
-    sha256 TEXT,
+    hash TEXT,
     url TEXT NOT NULL,
     retrieved_at TIMESTAMPTZ NOT NULL,
     calendar_start TEXT NOT NULL,
     calendar_end TEXT NOT NULL,
-    feed_start TEXT NOT NULL,
-    feed_end TEXT NOT NULL,
     timezone TEXT NOT NULL,
     max_arrival TEXT NOT NULL,
     max_departure TEXT NOT NULL,
-    PRIMARY KEY (sha256, url)
+    PRIMARY KEY (hash, url)
 );
 
 CREATE TABLE IF NOT EXISTS feed_request (
@@ -114,13 +112,11 @@ func (s *PSQLStorage) Close() error {
 func (s *PSQLStorage) ListFeeds(filter ListFeedsFilter) ([]*FeedMetadata, error) {
 	query := `
 SELECT
-    sha256,
+    hash,
     url,
     retrieved_at,
     calendar_start,
     calendar_end,
-    feed_start,
-    feed_end,
     timezone,
     max_arrival,
     max_departure
@@ -135,9 +131,9 @@ FROM feed`
 		params = append(params, filter.URL)
 		paramCount++
 	}
-	if filter.SHA256 != "" {
-		conditions = append(conditions, fmt.Sprintf("sha256 = $%d", paramCount))
-		params = append(params, filter.SHA256)
+	if filter.Hash != "" {
+		conditions = append(conditions, fmt.Sprintf("hash = $%d", paramCount))
+		params = append(params, filter.Hash)
 		paramCount++
 	}
 	if len(conditions) > 0 {
@@ -156,13 +152,11 @@ FROM feed`
 	for rows.Next() {
 		var feed FeedMetadata
 		err := rows.Scan(
-			&feed.SHA256,
+			&feed.Hash,
 			&feed.URL,
 			&feed.RetrievedAt,
 			&feed.CalendarStartDate,
 			&feed.CalendarEndDate,
-			&feed.FeedStartDate,
-			&feed.FeedEndDate,
 			&feed.Timezone,
 			&feed.MaxArrival,
 			&feed.MaxDeparture,
@@ -245,35 +239,29 @@ LEFT JOIN feed_consumer con ON req.url = con.url`
 func (s *PSQLStorage) WriteFeedMetadata(feed *FeedMetadata) error {
 	_, err := s.db.Exec(`
 INSERT INTO feed (
-    sha256,
+    hash,
     url,
     retrieved_at,
     calendar_start,
     calendar_end,
-    feed_start,
-    feed_end,
     timezone,
     max_arrival,
     max_departure
 )
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-ON CONFLICT (sha256, url) DO UPDATE SET
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+ON CONFLICT (hash, url) DO UPDATE SET
     retrieved_at = excluded.retrieved_at,
     calendar_start = excluded.calendar_start,
     calendar_end = excluded.calendar_end,
-    feed_start = excluded.feed_start,
-    feed_end = excluded.feed_end,
     timezone = excluded.timezone,
     max_arrival = excluded.max_arrival,
     max_departure = excluded.max_departure
 `,
-		feed.SHA256,
+		feed.Hash,
 		feed.URL,
 		feed.RetrievedAt.UTC(),
 		feed.CalendarStartDate,
 		feed.CalendarEndDate,
-		feed.FeedStartDate,
-		feed.FeedEndDate,
 		feed.Timezone,
 		feed.MaxArrival,
 		feed.MaxDeparture,
@@ -333,35 +321,27 @@ ON CONFLICT (name, url) DO UPDATE SET
 	return nil
 }
 
-func (s *PSQLStorage) DeleteFeedMetadata(url string, sha256 string) error {
-	_, err := s.db.Exec(`
-DELETE FROM feed
-WHERE url = $1 AND sha256 = $2
-`, url, sha256)
-	return err
-}
-
-func (s *PSQLStorage) GetReader(feedID string) (FeedReader, error) {
+func (s *PSQLStorage) GetReader(hash string) (FeedReader, error) {
 	return &PSQLFeedReader{
-		id: feedID,
+		id: hash,
 		db: s.db,
 	}, nil
 }
 
-func (s *PSQLStorage) GetWriter(feedID string) (FeedWriter, error) {
+func (s *PSQLStorage) GetWriter(hash string) (FeedWriter, error) {
 	tables := map[string]string{
 		"agency": `
 CREATE TABLE IF NOT EXISTS agency (
-    feed TEXT NOT NULL,
+    hash TEXT NOT NULL,
     id TEXT NOT NULL,
     name TEXT NOT NULL,
     url TEXT NOT NULL,
     timezone TEXT NOT NULL,
-    PRIMARY KEY(feed, id)
+    PRIMARY KEY(hash, id)
 );`,
 		"stops": `
 CREATE TABLE IF NOT EXISTS stops (
-    feed TEXT NOT NULL,
+    hash TEXT NOT NULL,
     id TEXT NOT NULL,
     code TEXT,
     name TEXT NOT NULL,
@@ -372,13 +352,13 @@ CREATE TABLE IF NOT EXISTS stops (
     location_type INTEGER NOT NULL,
     parent_station TEXT,
     platform_code TEXT,
-    PRIMARY KEY(feed, id)
+    PRIMARY KEY(hash, id)
 );
 CREATE INDEX IF NOT EXISTS stops_parent_station ON stops (parent_station);
 `,
 		"routes": `
 CREATE TABLE IF NOT EXISTS routes (
-    feed TEXT NOT NULL,
+    hash TEXT NOT NULL,
     id TEXT NOT NULL,
     agency_id TEXT,
     short_name TEXT,
@@ -388,32 +368,32 @@ CREATE TABLE IF NOT EXISTS routes (
     url TEXT,
     color TEXT,
     text_color TEXT,
-    PRIMARY KEY(feed, id)
+    PRIMARY KEY(hash, id)
 );`,
 		"trips": `
 CREATE TABLE IF NOT EXISTS trips (
-    feed TEXT NOT NULL,
+    hash TEXT NOT NULL,
     id TEXT NOT NULL,
     route_id TEXT NOT NULL,
     service_id TEXT NOT NULL,
     headsign TEXT,
     short_name TEXT,
     direction_id INTEGER,
-    PRIMARY KEY(feed, id)
+    PRIMARY KEY(hash, id)
 );
 CREATE INDEX IF NOT EXISTS trips_route_id ON trips (route_id);
 CREATE INDEX IF NOT EXISTS trips_service_id ON trips (service_id);
 `,
 		"stop_times": `
 CREATE TABLE IF NOT EXISTS stop_times (
-    feed TEXT NOT NULL,
+    hash TEXT NOT NULL,
     trip_id TEXT NOT NULL,
     stop_id TEXT NOT NULL,
     stop_sequence INTEGER NOT NULL,
     arrival_time TEXT NOT NULL,
     departure_time TEXT NOT NULL,
     headsign TEXT,
-    PRIMARY KEY(feed, trip_id, stop_id, stop_sequence)
+    PRIMARY KEY(hash, trip_id, stop_id, stop_sequence)
 );
 CREATE INDEX IF NOT EXISTS stop_times_trip_id ON stop_times (trip_id);
 CREATE INDEX IF NOT EXISTS stop_times_stop_id ON stop_times (stop_id);
@@ -422,7 +402,7 @@ CREATE INDEX IF NOT EXISTS stop_times_departure_time ON stop_times (departure_ti
 `,
 		"calendar": `
 CREATE TABLE IF NOT EXISTS calendar (
-    feed TEXT NOT NULL,
+    hash TEXT NOT NULL,
     service_id TEXT NOT NULL,
     start_date TEXT NOT NULL,
     end_date TEXT NOT NULL,
@@ -433,15 +413,15 @@ CREATE TABLE IF NOT EXISTS calendar (
     friday INTEGER NOT NULL,
     saturday INTEGER NOT NULL,
     sunday INTEGER NOT NULL,
-    PRIMARY KEY(feed, service_id)
+    PRIMARY KEY(hash, service_id)
 );`,
 		"calendar_dates": `
 CREATE TABLE IF NOT EXISTS calendar_dates (
-    feed TEXT NOT NULL,
+    hash TEXT NOT NULL,
     service_id TEXT NOT NULL,
     date TEXT NOT NULL,
     exception_type INTEGER NOT NULL,
-    PRIMARY KEY(feed, service_id, date)
+    PRIMARY KEY(hash, service_id, date)
 );`,
 	}
 
@@ -456,7 +436,7 @@ CREATE TABLE IF NOT EXISTS calendar_dates (
 
 	// In case feed already exists, delete all records
 	for name := range tables {
-		_, err := s.db.Exec(`DELETE FROM `+name+` WHERE feed = $1`, feedID)
+		_, err := s.db.Exec(`DELETE FROM `+name+` WHERE hash = $1`, hash)
 		if err != nil {
 			s.db.Close()
 			return nil, fmt.Errorf("deleting %s records: %s", name, err)
@@ -464,14 +444,14 @@ CREATE TABLE IF NOT EXISTS calendar_dates (
 	}
 
 	return &PSQLFeedWriter{
-		id: feedID,
+		id: hash,
 		db: s.db,
 	}, nil
 }
 
 func (w *PSQLFeedWriter) WriteAgency(a *Agency) error {
 	_, err := w.db.Exec(`
-INSERT INTO agency (feed, id, name, url, timezone)
+INSERT INTO agency (hash, id, name, url, timezone)
 VALUES ($1, $2, $3, $4, $5)`,
 		w.id,
 		a.ID,
@@ -494,7 +474,7 @@ func (w *PSQLFeedWriter) WriteStop(stop *Stop) error {
 		}
 	}
 	_, err := w.db.Exec(`
-INSERT INTO stops (feed, id, code, name, description, lat, lon, url, location_type, parent_station, platform_code)
+INSERT INTO stops (hash, id, code, name, description, lat, lon, url, location_type, parent_station, platform_code)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
 		w.id,
 		stop.ID,
@@ -516,7 +496,7 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
 
 func (w *PSQLFeedWriter) WriteRoute(route *Route) error {
 	_, err := w.db.Exec(`
-INSERT INTO routes (feed, id, agency_id, short_name, long_name, description, type, url, color, text_color)
+INSERT INTO routes (hash, id, agency_id, short_name, long_name, description, type, url, color, text_color)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
 		w.id,
 		route.ID,
@@ -570,7 +550,7 @@ func (w *PSQLFeedWriter) flushTrips() error {
 	defer tx.Rollback()
 
 	stmt, err := tx.Prepare(pq.CopyIn(
-		"trips", "feed", "id", "route_id", "service_id", "headsign", "short_name", "direction_id",
+		"trips", "hash", "id", "route_id", "service_id", "headsign", "short_name", "direction_id",
 	))
 	if err != nil {
 		return fmt.Errorf("preparing statement: %w", err)
@@ -626,7 +606,7 @@ func (w *PSQLFeedWriter) WriteCalendar(cal *Calendar) error {
 	}
 
 	_, err := w.db.Exec(`
-INSERT INTO calendar (feed, service_id, start_date, end_date, monday, tuesday, wednesday, thursday, friday, saturday, sunday)
+INSERT INTO calendar (hash, service_id, start_date, end_date, monday, tuesday, wednesday, thursday, friday, saturday, sunday)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
 		w.id,
 		cal.ServiceID,
@@ -643,7 +623,7 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
 
 func (w *PSQLFeedWriter) WriteCalendarDate(cd *CalendarDate) error {
 	_, err := w.db.Exec(`
-INSERT INTO calendar_dates (feed, service_id, date, exception_type)
+INSERT INTO calendar_dates (hash, service_id, date, exception_type)
 VALUES ($1, $2, $3, $4)`,
 		w.id,
 		cd.ServiceID,
@@ -693,7 +673,7 @@ func (w *PSQLFeedWriter) flushStopTimes() error {
 	defer tx.Rollback()
 
 	stmt, err := tx.Prepare(pq.CopyIn(
-		"stop_times", "feed", "trip_id", "stop_id", "stop_sequence", "arrival_time", "departure_time", "headsign",
+		"stop_times", "hash", "trip_id", "stop_id", "stop_sequence", "arrival_time", "departure_time", "headsign",
 	))
 	if err != nil {
 		return fmt.Errorf("preparing statement: %w", err)
@@ -738,7 +718,7 @@ func (r *PSQLFeedReader) Agencies() ([]*Agency, error) {
 	rows, err := r.db.Query(`
 SELECT id, name, url, timezone
 FROM agency
-WHERE feed = $1`, r.id)
+WHERE hash = $1`, r.id)
 	if err != nil {
 		return nil, fmt.Errorf("querying agencies: %w", err)
 	}
@@ -761,7 +741,7 @@ func (r *PSQLFeedReader) Stops() ([]*Stop, error) {
 	rows, err := r.db.Query(`
 SELECT id, code, name, description, lat, lon, url, location_type, parent_station, platform_code
 FROM stops
-WHERE feed = $1`, r.id)
+WHERE hash = $1`, r.id)
 	if err != nil {
 		return nil, fmt.Errorf("querying stops: %w", err)
 	}
@@ -801,7 +781,7 @@ func (r *PSQLFeedReader) Routes() ([]*Route, error) {
 	rows, err := r.db.Query(`
 SELECT id, agency_id, short_name, long_name, description, type, url, color, text_color
 FROM routes
-WHERE feed = $1`, r.id)
+WHERE hash = $1`, r.id)
 	if err != nil {
 		return nil, fmt.Errorf("querying routes: %w", err)
 	}
@@ -834,7 +814,7 @@ func (r *PSQLFeedReader) Trips() ([]*Trip, error) {
 	rows, err := r.db.Query(`
 SELECT id, route_id, service_id, headsign, short_name, direction_id
 FROM trips
-WHERE feed = $1`, r.id)
+WHERE hash = $1`, r.id)
 	if err != nil {
 		return nil, fmt.Errorf("querying trips: %w", err)
 	}
@@ -864,7 +844,7 @@ func (r *PSQLFeedReader) StopTimes() ([]*StopTime, error) {
 	rows, err := r.db.Query(`
 SELECT trip_id, stop_id, headsign, stop_sequence, arrival_time, departure_time
 FROM stop_times
-WHERE feed = $1`, r.id)
+WHERE hash = $1`, r.id)
 	if err != nil {
 		return nil, fmt.Errorf("querying stop times: %w", err)
 	}
@@ -894,7 +874,7 @@ func (r *PSQLFeedReader) Calendars() ([]*Calendar, error) {
 	rows, err := r.db.Query(`
 SELECT service_id, start_date, end_date, monday, tuesday, wednesday, thursday, friday, saturday, sunday
 FROM calendar
-WHERE feed = $1`, r.id)
+WHERE hash = $1`, r.id)
 	if err != nil {
 		return nil, fmt.Errorf("querying calendar: %w", err)
 	}
@@ -956,7 +936,7 @@ func (r *PSQLFeedReader) CalendarDates() ([]*CalendarDate, error) {
 	rows, err := r.db.Query(`
 SELECT service_id, date, exception_type
 FROM calendar_dates
-WHERE feed = $1`, r.id)
+WHERE hash = $1`, r.id)
 	if err != nil {
 		return nil, fmt.Errorf("querying calendar dates: %w", err)
 	}
@@ -1008,13 +988,13 @@ WITH
 Exceptions AS (
         SELECT service_id, exception_type
         FROM calendar_dates
-        WHERE feed = $1 AND
+        WHERE hash = $1 AND
               date = $2
 ),
 Regular AS (
         SELECT service_id
         FROM calendar
-        WHERE feed = $3 AND
+        WHERE hash = $3 AND
               `+weekday+` = 1 AND
               start_date <= $4 AND
               end_date >= $5
@@ -1110,10 +1090,10 @@ FROM stop_times
 INNER JOIN stops ON stop_times.stop_id = stops.id
 INNER JOIN trips ON stop_times.trip_id = trips.id
 INNER JOIN routes ON trips.route_id = routes.id
-WHERE stops.feed = $1 AND
-      stop_times.feed = $1 AND
-      trips.feed = $1 AND
-      routes.feed = $1
+WHERE stops.hash = $1 AND
+      stop_times.hash = $1 AND
+      trips.hash = $1 AND
+      routes.hash = $1
 `
 
 	// Apply filters to query
@@ -1305,7 +1285,7 @@ WHERE stops.feed = $1 AND
 	rows, err = r.db.Query(`
 SELECT id, code, name, description, lat, lon, url, location_type, platform_code
 FROM stops
-WHERE feed = $1 AND
+WHERE hash = $1 AND
       id IN (`+strings.Join(placeholders, ", ")+`)
 `, parentIDs...)
 	if err != nil {
@@ -1345,8 +1325,8 @@ func (r *PSQLFeedReader) RouteDirections(stopID string) ([]*RouteDirection, erro
 SELECT trips.route_id, trips.direction_id, trips.headsign, stop_times.headsign
 FROM stop_times
 INNER JOIN trips ON trips.id = stop_times.trip_id
-WHERE stop_times.feed = $1 AND
-      trips.feed = $1 AND
+WHERE stop_times.hash = $1 AND
+      trips.hash = $1 AND
       stop_times.stop_id = $2 AND
       stop_times.stop_sequence != (SELECT MAX(stop_sequence) FROM stop_times WHERE trip_id = trips.id)
 `, r.id, stopID)

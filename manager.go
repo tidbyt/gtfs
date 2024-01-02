@@ -29,13 +29,13 @@ var ErrNoActiveFeed = errors.New("no active feed found")
 
 // Manager manages GTFS data.
 type Manager struct {
-	RealtimeTTL     time.Duration
-	RealtimeTimeout time.Duration
-	RealtimeMaxSize int
-	StaticTimeout   time.Duration
-	StaticMaxSize   int
-	RefreshInterval time.Duration
-	Downloader      downloader.Downloader
+	RealtimeTTL           time.Duration
+	RealtimeTimeout       time.Duration
+	RealtimeMaxSize       int
+	StaticTimeout         time.Duration
+	StaticMaxSize         int
+	StaticRefreshInterval time.Duration
+	Downloader            downloader.Downloader
 
 	storage storage.Storage
 }
@@ -47,13 +47,12 @@ type Manager struct {
 // storage.
 func NewManager(s storage.Storage) *Manager {
 	return &Manager{
-		RealtimeTTL:     DefaultRealtimeTTL,
-		RealtimeTimeout: DefaultRealtimeTimeout,
-		RealtimeMaxSize: DefaultRealtimeMaxSize,
-		StaticTimeout:   DefaultStaticTimeout,
-		StaticMaxSize:   DefaultStaticMaxSize,
-		RefreshInterval: DefaultStaticRefreshInterval,
-		// TODO: s/RefreshInterval/StaticRefreshInterval/
+		RealtimeTTL:           DefaultRealtimeTTL,
+		RealtimeTimeout:       DefaultRealtimeTimeout,
+		RealtimeMaxSize:       DefaultRealtimeMaxSize,
+		StaticTimeout:         DefaultStaticTimeout,
+		StaticMaxSize:         DefaultStaticMaxSize,
+		StaticRefreshInterval: DefaultStaticRefreshInterval,
 
 		Downloader: downloader.NewMemoryDownloader(),
 
@@ -150,7 +149,7 @@ func (m *Manager) Refresh(ctx context.Context) error {
 		return fmt.Errorf("listing feeds: %w", err)
 	}
 	for _, feed := range feeds {
-		feedsByHash[feed.SHA256] = append(feedsByHash[feed.SHA256], feed)
+		feedsByHash[feed.Hash] = append(feedsByHash[feed.Hash], feed)
 	}
 
 	// Check all requests for URLs in need of refreshing
@@ -161,7 +160,7 @@ func (m *Manager) Refresh(ctx context.Context) error {
 
 	errs := []error{}
 	for _, req := range requests {
-		if req.RefreshedAt.Before(time.Now().Add(-m.RefreshInterval)) {
+		if req.RefreshedAt.Before(time.Now().Add(-m.StaticRefreshInterval)) {
 			err = m.processRequest(req, feedsByHash)
 			if err != nil {
 				errs = append(errs, fmt.Errorf("refreshing feed at %s: %w", req.URL, err))
@@ -256,7 +255,7 @@ func (m *Manager) processRequest(
 		}
 
 		// And write the metadata
-		metadata.SHA256 = hash
+		metadata.Hash = hash
 		metadata.URL = req.URL
 		metadata.RetrievedAt = time.Now().UTC()
 
@@ -295,7 +294,7 @@ func (m *Manager) loadMostRecentActive(feeds []*storage.FeedMetadata, when time.
 		}
 
 		// This is the one!
-		reader, err := m.storage.GetReader(feeds[i].SHA256)
+		reader, err := m.storage.GetReader(feeds[i].Hash)
 		if err != nil {
 			return nil, fmt.Errorf("getting reader: %w", err)
 		}
@@ -325,12 +324,6 @@ func feedActive(feed *storage.FeedMetadata, now time.Time) (bool, error) {
 		feedTz,
 	).Format("20060102")
 
-	if feed.FeedStartDate != "" && feed.FeedStartDate > todayThere {
-		return false, nil
-	}
-	if feed.FeedEndDate != "" && feed.FeedEndDate < todayThere {
-		return false, nil
-	}
 	if feed.CalendarStartDate > todayThere {
 		return false, nil
 	}

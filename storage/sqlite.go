@@ -53,17 +53,15 @@ func NewSQLiteStorage(cfg ...SQLiteConfig) (*SQLiteStorage, error) {
 
 	_, err = db.Exec(`
 CREATE TABLE IF NOT EXISTS feed (
-    sha256 TEXT,
+    hash TEXT,
     url TEXT NOT NULL,
     retrieved_at TIMESTAMP NOT NULL,
     calendar_start TEXT NOT NULL,
     calendar_end TEXT NOT NULL,
-    feed_start TEXT NOT NULL,
-    feed_end TEXT NOT NULL,
     timezone TEXT NOT NULL,
     max_arrival TEXT NOT NULL,
     max_departure TEXT NOT NULL,
-PRIMARY KEY (sha256, url)
+PRIMARY KEY (hash, url)
 );
 
 CREATE TABLE IF NOT EXISTS feed_request (
@@ -98,13 +96,11 @@ PRIMARY KEY (name, url)
 func (s *SQLiteStorage) ListFeeds(filter ListFeedsFilter) ([]*FeedMetadata, error) {
 	query := `
 SELECT
-    sha256,
+    hash,
     url,
     retrieved_at,
     calendar_start,
     calendar_end,
-    feed_start,
-    feed_end,
     timezone,
     max_arrival,
     max_departure
@@ -116,9 +112,9 @@ FROM feed`
 		conditions = append(conditions, "url = ?")
 		params = append(params, filter.URL)
 	}
-	if filter.SHA256 != "" {
-		conditions = append(conditions, "sha256 = ?")
-		params = append(params, filter.SHA256)
+	if filter.Hash != "" {
+		conditions = append(conditions, "hash = ?")
+		params = append(params, filter.Hash)
 	}
 	if len(conditions) > 0 {
 		query += " WHERE " + strings.Join(conditions, " AND ")
@@ -136,13 +132,11 @@ FROM feed`
 	for rows.Next() {
 		var feed FeedMetadata
 		err := rows.Scan(
-			&feed.SHA256,
+			&feed.Hash,
 			&feed.URL,
 			&feed.RetrievedAt,
 			&feed.CalendarStartDate,
 			&feed.CalendarEndDate,
-			&feed.FeedStartDate,
-			&feed.FeedEndDate,
 			&feed.Timezone,
 			&feed.MaxArrival,
 			&feed.MaxDeparture,
@@ -223,35 +217,29 @@ LEFT JOIN feed_consumer con ON req.url = con.url`
 func (s *SQLiteStorage) WriteFeedMetadata(feed *FeedMetadata) error {
 	_, err := s.feedDB.Exec(`
 INSERT INTO feed (
-    sha256,
+    hash,
     url,
     retrieved_at,
     calendar_start,
     calendar_end,
-    feed_start,
-    feed_end,
     timezone,
     max_arrival,
     max_departure
 )
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-ON CONFLICT (sha256, url) DO UPDATE SET
+VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT (hash, url) DO UPDATE SET
     retrieved_at = excluded.retrieved_at,
     calendar_start = excluded.calendar_start,
     calendar_end = excluded.calendar_end,
-    feed_start = excluded.feed_start,
-    feed_end = excluded.feed_end,
     timezone = excluded.timezone,
     max_arrival = excluded.max_arrival,
     max_departure = excluded.max_departure
 `,
-		feed.SHA256,
+		feed.Hash,
 		feed.URL,
 		feed.RetrievedAt,
 		feed.CalendarStartDate,
 		feed.CalendarEndDate,
-		feed.FeedStartDate,
-		feed.FeedEndDate,
 		feed.Timezone,
 		feed.MaxArrival,
 		feed.MaxDeparture,
@@ -311,30 +299,22 @@ ON CONFLICT (name, url) DO UPDATE SET
 	return nil
 }
 
-func (s *SQLiteStorage) DeleteFeedMetadata(url string, sha256 string) error {
-	_, err := s.feedDB.Exec(`
-DELETE FROM feed
-WHERE url = ? AND sha256 = ?
-`, url, sha256)
-	return err
-}
-
-func (s *SQLiteStorage) GetReader(feedID string) (FeedReader, error) {
-	db, found := s.feeds[feedID]
+func (s *SQLiteStorage) GetReader(hash string) (FeedReader, error) {
+	db, found := s.feeds[hash]
 	if found {
 		return &SQLiteFeedReader{
 			db: db,
 		}, nil
 	}
 	if !s.OnDisk {
-		return nil, fmt.Errorf("feed %s does not exist", feedID)
+		return nil, fmt.Errorf("feed %s does not exist", hash)
 	}
 
 	sourceName := ":memory:"
 	if s.OnDisk {
-		sourceName = s.Directory + "/" + feedID + ".db"
+		sourceName = s.Directory + "/" + hash + ".db"
 		if _, err := os.Stat(sourceName); os.IsNotExist(err) {
-			return nil, fmt.Errorf("feed %s does not exist at %s", feedID, sourceName)
+			return nil, fmt.Errorf("feed %s does not exist at %s", hash, sourceName)
 		}
 	}
 
@@ -343,17 +323,17 @@ func (s *SQLiteStorage) GetReader(feedID string) (FeedReader, error) {
 		return nil, fmt.Errorf("opening database: %w", err)
 	}
 
-	s.feeds[feedID] = db
+	s.feeds[hash] = db
 
 	return &SQLiteFeedReader{
 		db: db,
 	}, nil
 }
 
-func (s *SQLiteStorage) GetWriter(feedID string) (FeedWriter, error) {
+func (s *SQLiteStorage) GetWriter(hash string) (FeedWriter, error) {
 	sourceName := ":memory:"
 	if s.OnDisk {
-		sourceName = s.Directory + "/" + feedID + ".db"
+		sourceName = s.Directory + "/" + hash + ".db"
 		// delete file if it exists
 		if _, err := os.Stat(sourceName); err == nil {
 			err := os.Remove(sourceName)
@@ -456,7 +436,7 @@ CREATE TABLE calendar_dates (
 		}
 	}
 
-	s.feeds[feedID] = db
+	s.feeds[hash] = db
 
 	return &SQLiteFeedWriter{
 		db: db,
