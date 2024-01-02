@@ -157,19 +157,6 @@ FROM feed`
 }
 
 func (s *SQLiteStorage) ListFeedRequests(url string) ([]FeedRequest, error) {
-	r, e := s.feedDB.Query("SELECT url, refreshed_at FROM feed_request")
-	if e != nil {
-		return nil, e
-	}
-	defer r.Close()
-	for r.Next() {
-		var req FeedRequest
-		e := r.Scan(&req.URL, &req.RefreshedAt)
-		if e != nil {
-			return nil, e
-		}
-	}
-
 	query := `
 SELECT
     req.url,
@@ -297,10 +284,6 @@ ON CONFLICT (url)`
 		tx.Rollback()
 		return fmt.Errorf("inserting feed request: %w", err)
 	}
-
-	// TODO: IS there any point in keeping the updated at column?
-	// Don't think it'll be used, and it'll be annoying to avoid
-	// udpating it on every single manager load.
 
 	for _, con := range req.Consumers {
 		// Write the consumer record. Only update updated_at

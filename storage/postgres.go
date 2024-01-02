@@ -49,6 +49,8 @@ func NewPSQLStorage(connStr string, clearDB bool) (*PSQLStorage, error) {
 	if clearDB {
 		_, err = db.Exec(`
 DROP TABLE IF EXISTS feed;
+DROP TABLE IF EXISTS feed_request;
+DROP TABLE IF EXISTS feed_consumer;
 DROP TABLE IF EXISTS agency;
 DROP TABLE IF EXISTS calendar;
 DROP TABLE IF EXISTS calendar_dates;
@@ -68,7 +70,6 @@ CREATE TABLE IF NOT EXISTS feed (
     sha256 TEXT,
     url TEXT NOT NULL,
     retrieved_at TIMESTAMPTZ NOT NULL,
-    updated_at TIMESTAMPTZ NOT NULL,
     calendar_start TEXT NOT NULL,
     calendar_end TEXT NOT NULL,
     feed_start TEXT NOT NULL,
@@ -77,6 +78,21 @@ CREATE TABLE IF NOT EXISTS feed (
     max_arrival TEXT NOT NULL,
     max_departure TEXT NOT NULL,
     PRIMARY KEY (sha256, url)
+);
+
+CREATE TABLE IF NOT EXISTS feed_request (
+    url TEXT NOT NULL,
+    refreshed_at TIMESTAMPTZ NOT NULL,
+    PRIMARY KEY (url)
+);
+
+CREATE TABLE IF NOT EXISTS feed_consumer (
+    name TEXT NOT NULL,
+    url TEXT NOT NULL,
+    headers TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL,
+    PRIMARY KEY (name, url)
 );`)
 	if err != nil {
 		return nil, fmt.Errorf("creating feed table: %w", err)
@@ -154,6 +170,7 @@ FROM feed`
 		if err != nil {
 			return nil, fmt.Errorf("scanning feed: %w", err)
 		}
+		feed.RetrievedAt = feed.RetrievedAt.UTC()
 		feeds = append(feeds, &feed)
 	}
 
@@ -161,7 +178,68 @@ FROM feed`
 }
 
 func (s *PSQLStorage) ListFeedRequests(url string) ([]FeedRequest, error) {
-	return nil, fmt.Errorf("not implemented")
+	query := `
+SELECT
+    req.url,
+    req.refreshed_at,
+    con.name,
+    con.headers,
+    con.created_at,
+    con.updated_at
+FROM feed_request req
+LEFT JOIN feed_consumer con ON req.url = con.url`
+
+	var rows *sql.Rows
+	var err error
+	if url != "" {
+		query += " WHERE req.url = $1"
+		rows, err = s.db.Query(query, url)
+	} else {
+		rows, err = s.db.Query(query)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("listing feed requests: %w", err)
+	}
+
+	requests := map[string]*FeedRequest{}
+	for rows.Next() {
+		var req FeedRequest
+		var con FeedConsumer
+		var name sql.NullString
+		var headers sql.NullString
+		var createdAt sql.NullTime
+		var updatedAt sql.NullTime
+		err := rows.Scan(
+			&req.URL,
+			&req.RefreshedAt,
+			&name,
+			&headers,
+			&createdAt,
+			&updatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("scanning feed request: %w", err)
+		}
+		req.RefreshedAt = req.RefreshedAt.UTC()
+
+		if _, ok := requests[req.URL]; !ok {
+			requests[req.URL] = &req
+		}
+		if name.Valid {
+			con.Name = name.String
+			con.Headers = headers.String
+			con.CreatedAt = createdAt.Time.UTC()
+			con.UpdatedAt = updatedAt.Time.UTC()
+			requests[req.URL].Consumers = append(requests[req.URL].Consumers, con)
+		}
+	}
+
+	reqs := []FeedRequest{}
+	for _, req := range requests {
+		reqs = append(reqs, *req)
+	}
+
+	return reqs, nil
 }
 
 func (s *PSQLStorage) WriteFeedMetadata(feed *FeedMetadata) error {
@@ -191,7 +269,7 @@ ON CONFLICT (sha256, url) DO UPDATE SET
 `,
 		feed.SHA256,
 		feed.URL,
-		feed.RetrievedAt,
+		feed.RetrievedAt.UTC(),
 		feed.CalendarStartDate,
 		feed.CalendarEndDate,
 		feed.FeedStartDate,
@@ -207,7 +285,52 @@ ON CONFLICT (sha256, url) DO UPDATE SET
 }
 
 func (s *PSQLStorage) WriteFeedRequest(req FeedRequest) error {
-	return fmt.Errorf("not implemented")
+	tx, err := s.db.Begin()
+	if err != nil {
+		return fmt.Errorf("starting transaction: %w", err)
+	}
+
+	query := `
+INSERT INTO feed_request (url, refreshed_at)
+VALUES ($1, $2)
+ON CONFLICT (url)`
+
+	if req.RefreshedAt.IsZero() {
+		query += " DO NOTHING"
+	} else {
+		query += " DO UPDATE SET refreshed_at = excluded.refreshed_at"
+	}
+
+	_, err = tx.Exec(query, req.URL, req.RefreshedAt)
+	if err != nil {
+		tx.Rollback()
+		return fmt.Errorf("inserting feed request: %w", err)
+	}
+
+	for _, con := range req.Consumers {
+		// Write the consumer record. Only update updated_at
+		// if headers have changed.
+		_, err = tx.Exec(`
+INSERT INTO feed_consumer (name, url, headers, created_at, updated_at)
+VALUES ($1, $2, $3, $4, $5)
+ON CONFLICT (name, url) DO UPDATE SET
+    headers = excluded.headers,
+    updated_at = CASE
+        WHEN excluded.headers != feed_consumer.headers THEN excluded.updated_at
+        ELSE feed_consumer.updated_at
+    END`,
+			con.Name, req.URL, con.Headers, con.CreatedAt.UTC(), con.UpdatedAt.UTC())
+		if err != nil {
+			tx.Rollback()
+			return fmt.Errorf("inserting feed consumer: %w", err)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("committing transaction: %w", err)
+	}
+
+	return nil
 }
 
 func (s *PSQLStorage) DeleteFeedMetadata(url string, sha256 string) error {
