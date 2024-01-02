@@ -549,7 +549,7 @@ func testManagerLoadWithRefresh(t *testing.T, strg storage.Storage) {
 	// Set a very low refresh interval, and manager will consider
 	// existing data stale. Refresh, and we'll see the feed 2
 	// data served.
-	m.RefreshInterval = time.Duration(0)
+	m.StaticRefreshInterval = time.Duration(0)
 	require.NoError(t, m.Refresh(context.Background()))
 	s2, err = m.LoadStaticAsync("a", server.Server.URL+"/static.zip", nil, when)
 	require.NoError(t, err)
@@ -583,7 +583,7 @@ func testManagerLoadWithRefresh(t *testing.T, strg storage.Storage) {
 
 	// Set a high refresh interval, and refresh. Server should not
 	// be hit.
-	m.RefreshInterval = time.Hour
+	m.StaticRefreshInterval = time.Hour
 	assert.NoError(t, m.Refresh(context.Background()))
 	assert.Equal(t, []string{"/static.zip", "/static.zip", "/static.zip"}, server.Requests)
 
@@ -648,10 +648,10 @@ func testManagerBrokenData(t *testing.T, strg storage.Storage) {
 	assert.NoError(t, m.Refresh(context.Background()))
 	assert.Equal(t, 3, len(server.Requests))
 
-	// Lower RefreshInterval and make the good zip
+	// Lower StaticRefreshInterval and make the good zip
 	// available. Refresh will download the new data.
 	server.Feeds["/static.zip"] = goodZip
-	m.RefreshInterval = time.Duration(0)
+	m.StaticRefreshInterval = time.Duration(0)
 	assert.NoError(t, m.Refresh(context.Background()))
 	assert.Equal(t, 4, len(server.Requests))
 
@@ -662,7 +662,7 @@ func testManagerBrokenData(t *testing.T, strg storage.Storage) {
 	require.NoError(t, err)
 	require.Equal(t, 1, len(stops))
 
-	// With RefreshInterval at 0, refresh will do a request each
+	// With StaticRefreshInterval at 0, refresh will do a request each
 	// time.
 	assert.NoError(t, m.Refresh(context.Background()))
 	assert.Equal(t, 5, len(server.Requests))
@@ -850,7 +850,7 @@ func testManagerRespectTimezones(t *testing.T, strg storage.Storage) {
 }
 
 // Verifies that manager can refresh a bunch of feeds according to the
-// RefreshInterval.
+// StaticRefreshInterval.
 func testManagerRefreshFeeds(t *testing.T, strg storage.Storage) {
 	// TODO: write me
 }

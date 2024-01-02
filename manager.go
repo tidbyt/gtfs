@@ -29,13 +29,13 @@ var ErrNoActiveFeed = errors.New("no active feed found")
 
 // Manager manages GTFS data.
 type Manager struct {
-	RealtimeTTL     time.Duration
-	RealtimeTimeout time.Duration
-	RealtimeMaxSize int
-	StaticTimeout   time.Duration
-	StaticMaxSize   int
-	RefreshInterval time.Duration
-	Downloader      downloader.Downloader
+	RealtimeTTL           time.Duration
+	RealtimeTimeout       time.Duration
+	RealtimeMaxSize       int
+	StaticTimeout         time.Duration
+	StaticMaxSize         int
+	StaticRefreshInterval time.Duration
+	Downloader            downloader.Downloader
 
 	storage storage.Storage
 }
@@ -47,13 +47,12 @@ type Manager struct {
 // storage.
 func NewManager(s storage.Storage) *Manager {
 	return &Manager{
-		RealtimeTTL:     DefaultRealtimeTTL,
-		RealtimeTimeout: DefaultRealtimeTimeout,
-		RealtimeMaxSize: DefaultRealtimeMaxSize,
-		StaticTimeout:   DefaultStaticTimeout,
-		StaticMaxSize:   DefaultStaticMaxSize,
-		RefreshInterval: DefaultStaticRefreshInterval,
-		// TODO: s/RefreshInterval/StaticRefreshInterval/
+		RealtimeTTL:           DefaultRealtimeTTL,
+		RealtimeTimeout:       DefaultRealtimeTimeout,
+		RealtimeMaxSize:       DefaultRealtimeMaxSize,
+		StaticTimeout:         DefaultStaticTimeout,
+		StaticMaxSize:         DefaultStaticMaxSize,
+		StaticRefreshInterval: DefaultStaticRefreshInterval,
 
 		Downloader: downloader.NewMemoryDownloader(),
 
@@ -161,7 +160,7 @@ func (m *Manager) Refresh(ctx context.Context) error {
 
 	errs := []error{}
 	for _, req := range requests {
-		if req.RefreshedAt.Before(time.Now().Add(-m.RefreshInterval)) {
+		if req.RefreshedAt.Before(time.Now().Add(-m.StaticRefreshInterval)) {
 			err = m.processRequest(req, feedsByHash)
 			if err != nil {
 				errs = append(errs, fmt.Errorf("refreshing feed at %s: %w", req.URL, err))
