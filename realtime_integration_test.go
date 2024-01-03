@@ -1,15 +1,17 @@
 package gtfs_test
 
-// These tests are built by manually inspecting the NYC Ferry
-// website's (https://www.ferry.nyc/) realtime schedule. When a
+// The NYC Ferry tests below are built by manually inspecting the NYC
+// Ferry website's (https://www.ferry.nyc/) realtime schedule. When a
 // particular state was identified (e.g. a delay), a snapshot of the
 // realtime feed was downloaded. The tests verify that our library
 // interprets the realtime data the same way as their website.
 
+// The WMATA tests are built by manually inspecting WMATA realtime
+// feeds and constructing test cases.
+
 import (
-	"context"
-	"fmt"
-	"io/ioutil"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -19,18 +21,6 @@ import (
 	"tidbyt.dev/gtfs"
 	"tidbyt.dev/gtfs/testutil"
 )
-
-func loadNYCFerryRealtime(t *testing.T, suffix string) *gtfs.Realtime {
-	static := testutil.LoadStaticFile(t, "sqlite", "testdata/nycferry_static.zip")
-
-	buf, err := ioutil.ReadFile(fmt.Sprintf("testdata/nycferry_realtime_%s", suffix))
-	require.NoError(t, err)
-
-	rt, err := gtfs.NewRealtime(context.Background(), static, [][]byte{buf})
-	require.NoError(t, err)
-
-	return rt
-}
 
 // Here we spotted a delay on the ER ferry. At the time of the
 // snapshot, the southbound ER ferry was near South Williamsburg
@@ -43,7 +33,9 @@ func TestRealtimeIntegrationNYCFerryDelaysOnER(t *testing.T) {
 		t.Skip("loading nycferry dump is slow")
 	}
 
-	rt := loadNYCFerryRealtime(t, "20200302T110730")
+	rt := testutil.LoadRealtimeFile(
+		t, "sqlite", "testdata/nycferry_static.zip", "testdata/nycferry_realtime_20200302T110730",
+	)
 
 	tz, err := time.LoadLocation("America/New_York")
 	require.NoError(t, err)
@@ -99,7 +91,6 @@ func TestRealtimeIntegrationNYCFerryDelaysOnER(t *testing.T) {
 			Delay:        391 * time.Second,
 		},
 	}, departures)
-	return
 
 	// And there's no 321 departure from Wall St
 	departures, err = rt.Departures(
@@ -126,7 +117,9 @@ func TestRealtimeIntegrationNYCFerryDelayWithRecoveryOnSB(t *testing.T) {
 		t.Skip("loading nycferry dump is slow")
 	}
 
-	rt := loadNYCFerryRealtime(t, "20200302T155200")
+	rt := testutil.LoadRealtimeFile(
+		t, "sqlite", "testdata/nycferry_static.zip", "testdata/nycferry_realtime_20200302T155200",
+	)
 
 	tz, err := time.LoadLocation("America/New_York")
 	require.NoError(t, err)
@@ -176,4 +169,203 @@ func TestRealtimeIntegrationNYCFerryDelayWithRecoveryOnSB(t *testing.T) {
 			Headsign:     "Wall St./Pier 11",
 		},
 	}, departures)
+}
+
+// The WMATA realtime feed has 4 canceled trips on 2024-01-03. One of
+// them is trip 5068308_19722. It should appear in a static lookup,
+// but not in a realtime lookup.
+func TestRealtimeIntegrationWMATACanceledTrips(t *testing.T) {
+	if testing.Short() {
+		t.Skip("loading wmata dump is slow")
+	}
+
+	rt := testutil.LoadRealtimeFile(t, "sqlite", "testdata/wmata_static.zip", "testdata/wmata_20240103T131500.pb")
+	static := testutil.LoadStaticFile(t, "sqlite", "testdata/wmata_static.zip")
+
+	tzET, err := time.LoadLocation("America/New_York")
+	require.NoError(t, err)
+
+	// Verify trip passes through PF_C14_1 in static data
+	deps, err := static.Departures("PF_C14_1", time.Date(2024, 1, 3, 13, 0, 0, 0, tzET), 30*time.Minute, -1, "", -1, nil)
+	require.NoError(t, err)
+	found := false
+	for _, dep := range deps {
+		if dep.TripID == "5068308_19722" {
+			found = true
+			assert.Equal(t, "YELLOW", dep.RouteID)
+			assert.Equal(t, time.Date(2024, 1, 3, 13, 8, 0, 0, tzET), dep.Time)
+		}
+	}
+	assert.True(t, found)
+
+	// Verify it's not there when querying realtime data
+	deps, err = rt.Departures("PF_C14_1", time.Date(2024, 1, 3, 13, 0, 0, 0, tzET), 30*time.Minute, -1, "", -1, nil)
+	require.NoError(t, err)
+	found = false
+	for _, dep := range deps {
+		found = found || dep.TripID == "5068308_19722"
+	}
+	assert.False(t, found)
+}
+
+// WMATA shows delays on the BLUE line along trip 5068249_19722. This
+// trip has 28 stops in total. The feed gives departure time for the
+// first stop, and arrival times for all others. Lacking departure
+// information, any delays should be inferred from the arrival data.
+func TestRealtimeIntegrationWMATADelaysAlongATrip(t *testing.T) {
+
+	if testing.Short() {
+		t.Skip("loading wmata dump is slow")
+	}
+
+	rt := testutil.LoadRealtimeFile(t, "sqlite", "testdata/wmata_static.zip", "testdata/wmata_20240103T131500.pb")
+
+	tzET, err := time.LoadLocation("America/New_York")
+	require.NoError(t, err)
+
+	// These have been manually extracted from the static and
+	// realtime feeds for this trip.
+	for i, tc := range []struct {
+		StopID        string
+		StaticTime    string
+		RealtimeDelay string
+	}{
+		{"PF_J03_C", "12:53:00", "-15s"},  // 12:52:45
+		{"PF_J02_C", "12:57:00", "54s"},   // 12:57:54
+		{"PF_C13_C", "13:03:00", "5m18s"}, // 13:08:18
+		{"PF_C12_C", "13:05:00", "9m55s"}, // 13:14:55
+		{"PF_C11_1", "13:08:00", "9m9s"},  // 13:17:09
+		{"PF_C10_1", "13:11:00", "9m16s"}, // 13:20:16
+		{"PF_C09_1", "13:13:00", "9m"},    // 13:22:00
+		{"PF_C08_1", "13:15:00", "8m51s"}, // 13:23:51
+		{"PF_C07_1", "13:17:00", "8m37s"}, // 13:25:37
+		{"PF_C06_1", "13:20:00", "8m32s"}, // 13:28:32
+		{"PF_C05_1", "13:22:00", "8m54s"}, // 13:30:54
+		{"PF_C04_C", "13:25:00", "8m41s"}, // 13:33:41
+		{"PF_C03_1", "13:27:00", "8m23s"}, // 13:35:23
+		{"PF_C02_1", "13:29:00", "7m54s"}, // 13:36:54
+		{"PF_C01_C", "13:31:00", "7m30s"}, // 13:38:30
+		{"PF_D01_C", "13:32:00", "7m59s"}, // 13:39:59
+		{"PF_D02_1", "13:34:00", "7m29s"}, // 13:41:29
+		{"PF_D03_C", "13:36:00", "7m4s"},  // 13:43:04
+		{"PF_D04_C", "13:37:00", "7m34s"}, // 13:44:34
+		{"PF_D05_C", "13:39:00", "7m13s"}, // 13:46:13
+		{"PF_D06_C", "13:41:00", "6m54s"}, // 13:47:54
+		{"PF_D07_C", "13:43:00", "6m39s"}, // 13:49:39
+		{"PF_D08_C", "13:45:00", "6m43s"}, // 13:51:43
+		{"PF_G01_C", "13:50:00", "6m12s"}, // 13:56:12
+		{"PF_G02_C", "13:53:00", "6m6s"},  // 13:59:06
+		{"PF_G03_C", "13:55:00", "6m18s"}, // 14:01:18
+		{"PF_G04_C", "13:58:00", "6m9s"},  // 14:04:09
+	} {
+
+		st := strings.Split(tc.StaticTime, ":")
+		sH, err := strconv.Atoi(st[0])
+		require.NoError(t, err)
+		sM, err := strconv.Atoi(st[1])
+		require.NoError(t, err)
+		staticTime := time.Date(2024, 1, 3, sH, sM, 0, 0, tzET)
+
+		realtimeDelay, err := time.ParseDuration(tc.RealtimeDelay)
+		require.NoError(t, err)
+
+		expectedTime := staticTime.Add(realtimeDelay)
+
+		var d *gtfs.Departure
+		deps, err := rt.Departures(tc.StopID, expectedTime.Add(-1*time.Minute), 2*time.Minute, -1, "", -1, nil)
+		require.NoError(t, err)
+		for _, dep := range deps {
+			if dep.TripID == "5068249_19722" {
+				d2 := dep
+				d = &d2
+				break
+			}
+		}
+
+		assert.NotNil(t, d)
+		assert.Equal(t, expectedTime, d.Time)
+		assert.Equal(t, realtimeDelay, d.Delay)
+		assert.Equal(t, tc.StopID, d.StopID)
+		assert.Equal(t, "BLUE", d.RouteID)
+		assert.Equal(t, uint32(i+1), d.StopSequence)
+		assert.Equal(t, "LARGO", d.Headsign)
+		assert.Equal(t, int8(0), d.DirectionID)
+	}
+
+	// There is also a final record in the realtime data. Since
+	// this refers to the final stop along the trip, there should be no departure for it.
+	//
+	// {"PF_G05_C", "14:01:00", "6m6s"}, // 14:07:06
+	deps, err := rt.Departures("PF_G05_C", time.Date(2024, 1, 3, 13, 30, 0, 0, tzET), 60*time.Minute, -1, "", -1, nil)
+	require.NoError(t, err)
+	found := false
+	for _, dep := range deps {
+		if dep.TripID == "5068249_19722" {
+			found = true
+			break
+		}
+	}
+	assert.False(t, found)
+}
+
+// Along SILVER route's trip 5068636_19722 toward ASHBURN, 2nd, 3rd
+// and 4th stops are skipped. There are delays on all stops.
+func TestRealtimeIntegrationWMATASkippedStops(t *testing.T) {
+
+	if testing.Short() {
+		t.Skip("loading wmata dump is slow")
+	}
+
+	rt := testutil.LoadRealtimeFile(t, "sqlite", "testdata/wmata_static.zip", "testdata/wmata_20240103T163116.pb")
+
+	tzET, err := time.LoadLocation("America/New_York")
+	require.NoError(t, err)
+
+	// These are the first few stops along the trip, according to
+	// realtime data. The ones without an expected time are
+	// skipped.
+	for i, tc := range []struct {
+		StopID       string
+		ExpectedTime string
+	}{
+		{"PF_G05_C", "2024-01-03 15:52:08 -0500 EST"},
+		{"PF_G04_C", ""},
+		{"PF_G03_C", ""},
+		{"PF_G02_C", ""},
+		{"PF_G01_C", "2024-01-03 15:54:32 -0500 EST"},
+		{"PF_D08_C", "2024-01-03 16:00:30 -0500 EST"},
+		{"PF_D07_C", "2024-01-03 16:02:15 -0500 EST"},
+		{"PF_D06_C", "2024-01-03 16:04:05 -0500 EST"},
+		{"PF_D05_C", "2024-01-03 16:05:39 -0500 EST"},
+	} {
+		var d *gtfs.Departure
+		deps, err := rt.Departures(tc.StopID, time.Date(2024, 1, 3, 15, 50, 0, 0, tzET), 80*time.Minute, -1, "", -1, nil)
+		require.NoError(t, err)
+		for _, dep := range deps {
+			if dep.TripID == "5068636_19722" {
+				d2 := dep
+				d = &d2
+				break
+			}
+		}
+
+		if tc.ExpectedTime == "" {
+			assert.Nil(t, d, "stop %s should be skipped", tc.StopID)
+			continue
+		}
+
+		require.NotNil(t, d, "stop %s should not be skipped", tc.StopID)
+
+		expTime, err := time.Parse("2006-01-02 15:04:05 -0700 MST", tc.ExpectedTime)
+		require.NoError(t, err)
+		expTime = expTime.In(tzET)
+
+		assert.Equal(t, expTime, d.Time)
+		assert.Equal(t, tc.StopID, d.StopID)
+		assert.Equal(t, "SILVER", d.RouteID)
+		assert.Equal(t, uint32(i+1), d.StopSequence)
+		assert.Equal(t, "ASHBURN", d.Headsign)
+		assert.Equal(t, int8(1), d.DirectionID)
+		assert.NotEqual(t, 0, d.Delay)
+	}
 }

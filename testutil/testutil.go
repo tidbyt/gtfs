@@ -5,7 +5,8 @@ package testutil
 import (
 	"archive/zip"
 	"bytes"
-	"io/ioutil"
+	"context"
+	"os"
 	"strings"
 	"testing"
 
@@ -58,7 +59,7 @@ func LoadStatic(t testing.TB, backend string, buf []byte) *gtfs.Static {
 }
 
 func LoadStaticFile(t testing.TB, backend string, filename string) *gtfs.Static {
-	buf, err := ioutil.ReadFile(filename)
+	buf, err := os.ReadFile(filename)
 	require.NoError(t, err)
 
 	return LoadStatic(t, backend, buf)
@@ -111,4 +112,16 @@ func BuildZip(
 	require.NoError(t, w.Close())
 
 	return buf.Bytes()
+}
+
+func LoadRealtimeFile(t testing.TB, backend string, staticPath string, realtimePath string) *gtfs.Realtime {
+	static := LoadStaticFile(t, backend, staticPath)
+
+	buf, err := os.ReadFile(realtimePath)
+	require.NoError(t, err)
+
+	rt, err := gtfs.NewRealtime(context.Background(), static, [][]byte{buf})
+	require.NoError(t, err)
+
+	return rt
 }
