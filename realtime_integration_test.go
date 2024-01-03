@@ -328,15 +328,15 @@ func TestRealtimeIntegrationWMATASkippedStops(t *testing.T) {
 		StopID       string
 		ExpectedTime string
 	}{
-		{"PF_G05_C", "2024-01-03 15:52:08 EST"},
+		{"PF_G05_C", "2024-01-03 15:52:08 -0500 EST"},
 		{"PF_G04_C", ""},
 		{"PF_G03_C", ""},
 		{"PF_G02_C", ""},
-		{"PF_G01_C", "2024-01-03 15:54:32 EST"},
-		{"PF_D08_C", "2024-01-03 16:00:30 EST"},
-		{"PF_D07_C", "2024-01-03 16:02:15 EST"},
-		{"PF_D06_C", "2024-01-03 16:04:05 EST"},
-		{"PF_D05_C", "2024-01-03 16:05:39 EST"},
+		{"PF_G01_C", "2024-01-03 15:54:32 -0500 EST"},
+		{"PF_D08_C", "2024-01-03 16:00:30 -0500 EST"},
+		{"PF_D07_C", "2024-01-03 16:02:15 -0500 EST"},
+		{"PF_D06_C", "2024-01-03 16:04:05 -0500 EST"},
+		{"PF_D05_C", "2024-01-03 16:05:39 -0500 EST"},
 	} {
 		var d *gtfs.Departure
 		deps, err := rt.Departures(tc.StopID, time.Date(2024, 1, 3, 15, 50, 0, 0, tzET), 80*time.Minute, -1, "", -1, nil)
@@ -356,10 +356,11 @@ func TestRealtimeIntegrationWMATASkippedStops(t *testing.T) {
 
 		require.NotNil(t, d, "stop %s should not be skipped", tc.StopID)
 
-		expTime, err := time.Parse("2006-01-02 15:04:05 MST", tc.ExpectedTime)
+		expTime, err := time.Parse("2006-01-02 15:04:05 -0700 MST", tc.ExpectedTime)
 		require.NoError(t, err)
+		expTime = expTime.In(tzET)
 
-		assert.Equal(t, expTime.In(tzET), d.Time)
+		assert.Equal(t, expTime, d.Time)
 		assert.Equal(t, tc.StopID, d.StopID)
 		assert.Equal(t, "SILVER", d.RouteID)
 		assert.Equal(t, uint32(i+1), d.StopSequence)
