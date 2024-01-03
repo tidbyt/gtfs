@@ -58,7 +58,7 @@ func departures(cmd *cobra.Command, args []string) error {
 	for _, departure := range departures {
 		delay := ""
 		if departure.Delay != 0 {
-			delay = fmt.Sprintf("(%s)", departure.Delay)
+			delay = fmt.Sprintf(" (%s)", departure.Delay)
 		}
 		fmt.Printf(
 			"%s%s - %s - %s\n",
