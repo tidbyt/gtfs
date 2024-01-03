@@ -1,6 +1,7 @@
 package gtfs
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -146,5 +147,36 @@ func TestStaticRangePerDate(t *testing.T) {
 			spans := rangePerDate(tc.Start, tc.Window, tc.Max)
 			assert.Equal(t, tc.Expected, spans)
 		})
+	}
+}
+
+func TestRealtimeDelayFromOffsetAndTime(t *testing.T) {
+
+	// TODO: Would be great to flesh this out.
+
+	for _, tc := range []struct {
+		tz            *time.Location
+		eventOffset   string
+		updateTime    string
+		expectedDelay string
+	}{
+		{time.UTC, "23h6m", "2020-01-15 23:05:55 +0000 UTC", "-5s"},
+		{time.UTC, "23h11m", "2020-01-15 23:11:25 +0000 UTC", "25s"},
+	} {
+		offset, err := time.ParseDuration(tc.eventOffset)
+		require.NoError(t, err)
+		time_, err := time.Parse("2006-01-02 15:04:05 -0700 MST", tc.updateTime)
+		require.NoError(t, err)
+		delay, err := time.ParseDuration(tc.expectedDelay)
+		require.NoError(t, err)
+
+		actual := delayFromOffsetAndTime(tc.tz, offset, time_)
+		assert.Equal(
+			t, delay, actual,
+			fmt.Sprintf(
+				"%s %s, expect %s, got %s",
+				tc.eventOffset, tc.updateTime, tc.expectedDelay, actual,
+			),
+		)
 	}
 }

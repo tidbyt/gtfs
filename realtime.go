@@ -266,6 +266,41 @@ func resolveStopReferences(updates []*parse.StopTimeUpdate, events []*storage.St
 	}
 }
 
+// Computes delay by comparing a static time given as offset, and
+// timestamp from realtime.
+func delayFromOffsetAndTime(tz *time.Location, eventOffset time.Duration, updateTime time.Time) time.Duration {
+
+	// The eventOffset (from static GTFS) gives a time of
+	// day, as an offset from noon-12h in the local
+	// timezone. It's possible to apply to multiple dates,
+	// but most likely it's from the same day, or the day
+	// before the realtime update. Whichever's closer in
+	// time is what we pick.
+
+	sameNoonLocal := time.Date(updateTime.Year(), updateTime.Month(), updateTime.Day(), 12, 0, 0, 0, tz)
+	sameNoonUTC := sameNoonLocal.UTC()
+	prevNoonUTC := sameNoonLocal.AddDate(0, 0, -1).UTC()
+
+	sameTime := sameNoonUTC.Add(-12 * time.Hour).Add(eventOffset)
+	prevTime := prevNoonUTC.Add(-12 * time.Hour).Add(eventOffset)
+
+	sameDiff := updateTime.Sub(sameTime)
+	prevDiff := updateTime.Sub(prevTime)
+
+	sameDiffAbs := sameDiff
+	if sameDiffAbs < 0 {
+		sameDiffAbs *= -1
+	}
+	prevDiffAbs := prevDiff
+	if prevDiffAbs < 0 {
+		prevDiffAbs *= -1
+	}
+	if sameDiffAbs < prevDiffAbs {
+		return sameDiff
+	}
+	return prevDiff
+}
+
 // Construct RealtimeUpdates from StopTimeUpdates and
 // StopTimeEvents. Groups them by trip and stop.
 func (rt *Realtime) buildRealtimeUpdates(
@@ -294,41 +329,6 @@ func (rt *Realtime) buildRealtimeUpdates(
 		sort.Slice(updates, func(i, j int) bool {
 			return updates[i].StopSequence < updates[j].StopSequence
 		})
-	}
-
-	// Computes delay of an update, given the correspnding time
-	// from static schedule.
-	updateDelay := func(eventOffset time.Duration, updateTime time.Time) time.Duration {
-
-		// The eventOffset (from static GTFS) gives a time of
-		// day, as an offset from noon-12h in the local
-		// timezone. It's possible to apply to multiple dates,
-		// but most likely it's from the same day, or the day
-		// before the realtime update. Whichever's closer in
-		// time is what we pick.
-
-		sameNoonLocal := time.Date(updateTime.Year(), updateTime.Month(), updateTime.Day(), 12, 0, 0, 0, timezone)
-		sameNoonUTC := sameNoonLocal.UTC()
-		prevNoonUTC := sameNoonLocal.AddDate(0, 0, -1).UTC()
-
-		sameTime := sameNoonUTC.Add(-12 * time.Hour).Add(eventOffset)
-		prevTime := prevNoonUTC.Add(-12 * time.Hour).Add(eventOffset)
-
-		sameDiff := updateTime.Sub(sameTime)
-		prevDiff := updateTime.Sub(prevTime)
-
-		sameDiffAbs := sameDiff
-		if sameDiffAbs < 0 {
-			sameDiffAbs *= -1
-		}
-		prevDiffAbs := prevDiff
-		if prevDiffAbs < 0 {
-			prevDiffAbs *= -1
-		}
-		if sameDiffAbs < prevDiffAbs {
-			return sameDiff
-		}
-		return prevDiff
 	}
 
 	// Combine static schedule and realtime updates
@@ -375,7 +375,8 @@ func (rt *Realtime) buildRealtimeUpdates(
 				// Feeds can use the timestamp to communicate delays
 				rtUp.ArrivalDelay = u.ArrivalDelay
 				if !u.ArrivalTime.IsZero() && u.ArrivalDelay == 0 {
-					rtUp.ArrivalDelay = updateDelay(
+					rtUp.ArrivalDelay = delayFromOffsetAndTime(
+						timezone,
 						events[ei].StopTime.ArrivalTime(),
 						u.ArrivalTime,
 					)
@@ -385,7 +386,8 @@ func (rt *Realtime) buildRealtimeUpdates(
 				// Same thing here
 				rtUp.DepartureDelay = u.DepartureDelay
 				if !u.DepartureTime.IsZero() {
-					rtUp.DepartureDelay = updateDelay(
+					rtUp.DepartureDelay = delayFromOffsetAndTime(
+						timezone,
 						events[ei].StopTime.DepartureTime(),
 						u.DepartureTime,
 					)
@@ -396,12 +398,12 @@ func (rt *Realtime) buildRealtimeUpdates(
 				// departure. If the arrival is early,
 				// interpret it as a return to regular
 				// schedule.
-				rtUp.DepartureDelay = max(u.ArrivalDelay, 0)
+				rtUp.DepartureDelay = max(rtUp.ArrivalDelay, 0)
 			}
 			if !u.ArrivalIsSet {
 				// Lacking Arrival data, assume
 				// departure delay applies to arrival
-				rtUp.ArrivalDelay = u.DepartureDelay
+				rtUp.ArrivalDelay = rtUp.DepartureDelay
 			}
 
 			// Track the min and max delays observed. This

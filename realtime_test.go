@@ -2026,3 +2026,83 @@ func TestRealtimeDelayCrossingDSTBoundaryFromPreviousDay(t *testing.T) {
 		require.Equal(t, tc.ExpectedDepartureTime, departures[0].Time, tc.Name)
 	}
 }
+
+func TestRealtimeArrivalDelayOnly(t *testing.T) {
+
+	// Some agencies (e.g. WMATA) prefer passing Arrival Delay
+	// instead of Departure Delay (or dito with Time.) When we
+	// encounter a delayed arrival, and no departure information
+	// is available, we should assume the departure is similarly
+	// delayed.
+	feed := buildFeed(t, []TripUpdate{
+		{
+			TripID: "t1",
+			StopUpdates: []StopUpdate{
+				{ // 55s delay
+					StopID:       "s2",
+					ArrivalSet:   true,
+					ArrivalDelay: 55,
+				},
+			},
+		},
+		{
+			TripID: "t2",
+			StopUpdates: []StopUpdate{
+				{ // arrival delay, but departure delay shows it recovers
+					StopID:         "s1",
+					ArrivalSet:     true,
+					ArrivalDelay:   55,
+					DepartureSet:   true,
+					DepartureDelay: 0,
+				},
+				{ // 25s delay (via time)
+					StopSequence: 2,
+					ArrivalSet:   true,
+					ArrivalTime:  time.Date(2020, 1, 15, 23, 11, 25, 0, time.UTC),
+				},
+			},
+		},
+		{
+			TripID: "t3",
+			StopUpdates: []StopUpdate{
+				{ // 35s delay (via time)
+					StopID:      "z1",
+					ArrivalSet:  true,
+					ArrivalTime: time.Date(2020, 1, 15, 23, 5, 35, 0, time.UTC),
+				},
+				{ // recovery via early arrival
+					StopID:      "z2",
+					ArrivalSet:  true,
+					ArrivalTime: time.Date(2020, 1, 15, 23, 5, 55, 0, time.UTC),
+				},
+			},
+		},
+	})
+	static := SimpleStaticFixture(t)
+	rt, err := gtfs.NewRealtime(context.Background(), static, feed)
+	require.NoError(t, err)
+	assert.Equal(t, uint64(time.Date(2020, 1, 15, 23, 0, 0, 0, time.UTC).Unix()), rt.Timestamp)
+
+	for _, tc := range []struct {
+		TripID string
+		StopID string
+		Time   time.Time
+		Delay  time.Duration
+	}{
+		{"t1", "s1", time.Date(2020, 1, 15, 23, 0, 0, 0, time.UTC), 0},
+		{"t1", "s2", time.Date(2020, 1, 15, 23, 1, 55, 0, time.UTC), 55 * time.Second},
+		{"t1", "s3", time.Date(2020, 1, 15, 23, 2, 55, 0, time.UTC), 55 * time.Second},
+		{"t2", "s1", time.Date(2020, 1, 15, 23, 0, 0, 0, time.UTC), 0},
+		{"t2", "s2", time.Date(2020, 1, 15, 23, 11, 25, 0, time.UTC), 25 * time.Second},
+		{"t2", "s3", time.Date(2020, 1, 15, 23, 12, 25, 0, time.UTC), 25 * time.Second},
+		{"t3", "z1", time.Date(2020, 1, 15, 23, 5, 35, 0, time.UTC), 35 * time.Second},
+		{"t3", "z2", time.Date(2020, 1, 15, 23, 6, 0, 0, time.UTC), 0},
+	} {
+		deps, err := rt.Departures(tc.StopID, tc.Time.Add(-time.Minute), 2*time.Minute, -1, "", -1, nil)
+		require.NoError(t, err)
+		require.Equal(t, 1, len(deps))
+		assert.Equal(t, tc.Delay, deps[0].Delay, "trip %s stop %s time %s", tc.TripID, tc.StopID, tc.Time)
+		assert.Equal(t, tc.Time, deps[0].Time, "trip %s stop %s time %s", tc.TripID, tc.StopID, tc.Time)
+	}
+
+}
