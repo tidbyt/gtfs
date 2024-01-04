@@ -6,7 +6,7 @@ package gtfs_test
 // realtime feed was downloaded. The tests verify that our library
 // interprets the realtime data the same way as their website.
 
-// The WMATA tests are built by manually inspecting WMATA realtime
+// The WMATA and BART tests are built by manually inspecting WMATA realtime
 // feeds and constructing test cases.
 
 import (
@@ -367,5 +367,70 @@ func TestRealtimeIntegrationWMATASkippedStops(t *testing.T) {
 		assert.Equal(t, "ASHBURN", d.Headsign)
 		assert.Equal(t, int8(1), d.DirectionID)
 		assert.NotEqual(t, 0, d.Delay)
+	}
+}
+
+// BART's realtime feed shows delays along trip 1461820, with some
+// kinda confusing data.
+func TestRealtimeIntegrationBART(t *testing.T) {
+	if testing.Short() {
+		t.Skip("loading bart dump is slow")
+	}
+
+	// According to static schedule, trip 1461820 ends with these 5 stops:
+	//
+	// stop_id, arrival_time, departure_time
+	// CONC,11:21:00,11:21:00
+	// NCON,11:24:00,11:24:00
+	// PITT,11:30:00,11:31:00
+	// PCTR,11:44:00,11:44:00
+	// ANTC,11:52:00,11:52:00
+	//
+	// Realtime feed updates stop time at NCON and PITT. Both
+	// updates hold arrival and departure data, so the departure
+	// data should take precedence.
+	//
+	// The weird stuff:
+	//  - The NCON delay is 49s, but timestamp is 11:26:42, which
+	//    implies a 2m42s delay.
+	//  - The PITT delay is 0 (suggesting return to schedule), but
+	//    timestamp is 11:32:29 EST, which implies a 1m29s delay.
+	//
+	// Since spec says timestamps take precedence over delays, the
+	// correct departure times should be as per the following test
+	// cases.
+	//
+	// That said, I sort of wonder if this is what BART intended.
+
+	rt := testutil.LoadRealtimeFile(t, "sqlite", "testdata/bart_static.zip", "testdata/bart_20240104T142509.pb")
+
+	tzSF, err := time.LoadLocation("America/Los_Angeles")
+	require.NoError(t, err)
+
+	for _, tc := range []struct {
+		StopID        string
+		ExpectedTime  time.Time
+		ExpectedDelay string
+	}{
+		{"CONC", time.Date(2024, 1, 4, 11, 21, 0, 0, tzSF), "0s"},
+		{"NCON", time.Date(2024, 1, 4, 11, 26, 42, 0, tzSF), "2m42s"},
+		{"PITT", time.Date(2024, 1, 4, 11, 32, 29, 0, tzSF), "1m29s"},
+		{"PCTR", time.Date(2024, 1, 4, 11, 45, 29, 0, tzSF), "1m29s"}, // propagated
+		// No departure from ANTC, as it's the final stop on the trip
+	} {
+		var d *gtfs.Departure
+		deps, err := rt.Departures(tc.StopID, tc.ExpectedTime.Add(-time.Minute), 2*time.Minute, -1, "", -1, nil)
+		require.NoError(t, err)
+		for _, dep := range deps {
+			if dep.TripID == "1461820" {
+				d2 := dep
+				d = &d2
+				break
+			}
+		}
+		require.NotNil(t, d, "stop %s should not be skipped", tc.StopID)
+		assert.Equal(t, tc.ExpectedTime, d.Time)
+		assert.Equal(t, tc.ExpectedDelay, d.Delay.String())
+		assert.Equal(t, tc.StopID, d.StopID)
 	}
 }
