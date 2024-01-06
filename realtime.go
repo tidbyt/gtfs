@@ -6,6 +6,7 @@ import (
 	"sort"
 	"time"
 
+	"tidbyt.dev/gtfs/model"
 	"tidbyt.dev/gtfs/parse"
 	"tidbyt.dev/gtfs/storage"
 )
@@ -105,7 +106,7 @@ func (rt *Realtime) Departures(
 	numDepartures int,
 	routeID string,
 	directionID int8,
-	routeTypes []storage.RouteType) ([]Departure, error) {
+	routeTypes []model.RouteType) ([]Departure, error) {
 
 	// Get the scheduled departures. Extend the window so that
 	// delayed (or early) departures are included.

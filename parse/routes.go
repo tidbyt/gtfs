@@ -8,6 +8,7 @@ import (
 
 	"github.com/gocarina/gocsv"
 
+	"tidbyt.dev/gtfs/model"
 	"tidbyt.dev/gtfs/storage"
 )
 
@@ -26,7 +27,7 @@ type RouteCSV struct {
 	// ContinuousDropOff string `csv:"continuous_drop_off"`
 }
 
-func legalRouteType(t storage.RouteType) bool {
+func legalRouteType(t model.RouteType) bool {
 	if t >= 0 && t <= 7 {
 		return true
 	}
@@ -92,7 +93,7 @@ func ParseRoutes(writer storage.FeedWriter, data io.Reader, agency map[string]bo
 		}
 
 		// RouteType must be valid
-		if !legalRouteType(storage.RouteType(routeType)) {
+		if !legalRouteType(model.RouteType(routeType)) {
 			return nil, fmt.Errorf("route_id '%s' has invalid route_type: %d", r.ID, routeType)
 		}
 
@@ -108,13 +109,13 @@ func ParseRoutes(writer storage.FeedWriter, data io.Reader, agency map[string]bo
 			return nil, fmt.Errorf("route_id '%s' has invalid route_text_color: %s", r.ID, r.TextColor)
 		}
 
-		err = writer.WriteRoute(&storage.Route{
+		err = writer.WriteRoute(&model.Route{
 			ID:        r.ID,
 			AgencyID:  r.AgencyID,
 			ShortName: r.ShortName,
 			LongName:  r.LongName,
 			Desc:      r.Desc,
-			Type:      storage.RouteType(routeType),
+			Type:      model.RouteType(routeType),
 			URL:       r.URL,
 			Color:     r.Color,
 			TextColor: r.TextColor,

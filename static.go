@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"time"
 
+	"tidbyt.dev/gtfs/model"
 	"tidbyt.dev/gtfs/storage"
 )
 
@@ -52,12 +53,12 @@ func NewStatic(reader storage.FeedReader, metadata *storage.FeedMetadata) (*Stat
 // If limit is >0, at most limit stops are returned.
 //
 // If types is provided, then only stops along routes of at least one
-// of the types is returned. E.g., pass []storage.RouteType{storage.RouteTypeBus} to
+// of the types is returned. E.g., pass []model.RouteType{model.RouteTypeBus} to
 // only receive bus stops.
 //
 // Only stations (location_type=1) and stops (location_type=0)
 // _without_ parent station are returned.
-func (s Static) NearbyStops(lat float64, lon float64, limit int, types []storage.RouteType) ([]storage.Stop, error) {
+func (s Static) NearbyStops(lat float64, lon float64, limit int, types []model.RouteType) ([]model.Stop, error) {
 	stops, err := s.Reader.NearbyStops(lat, lon, limit, types)
 	if err != nil {
 		return nil, fmt.Errorf("getting nearby stops: %w", err)
@@ -73,7 +74,7 @@ func (s Static) NearbyStops(lat float64, lon float64, limit int, types []storage
 //
 // NOTE: Headsign can also be set on stop_time, which messes this up
 // quite a bit.
-func (s Static) RouteDirections(stopID string) ([]*storage.RouteDirection, error) {
+func (s Static) RouteDirections(stopID string) ([]*model.RouteDirection, error) {
 	rds, err := s.Reader.RouteDirections(stopID)
 	if err != nil {
 		return nil, err
@@ -180,7 +181,7 @@ func (s Static) Departures(
 	numDepartures int,
 	routeID string,
 	directionID int8,
-	routeTypes []storage.RouteType,
+	routeTypes []model.RouteType,
 ) ([]Departure, error) {
 
 	departures := []Departure{}

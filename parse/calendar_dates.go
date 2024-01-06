@@ -7,6 +7,7 @@ import (
 
 	"github.com/gocarina/gocsv"
 
+	"tidbyt.dev/gtfs/model"
 	"tidbyt.dev/gtfs/storage"
 )
 
@@ -54,7 +55,7 @@ func ParseCalendarDates(
 			maxDate = cd.Date
 		}
 
-		writer.WriteCalendarDate(&storage.CalendarDate{
+		writer.WriteCalendarDate(&model.CalendarDate{
 			ServiceID:     cd.ServiceID,
 			Date:          cd.Date,
 			ExceptionType: cd.ExceptionType,

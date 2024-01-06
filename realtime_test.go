@@ -12,7 +12,7 @@ import (
 	proto "google.golang.org/protobuf/proto"
 
 	"tidbyt.dev/gtfs"
-	"tidbyt.dev/gtfs/storage"
+	"tidbyt.dev/gtfs/model"
 	"tidbyt.dev/gtfs/testutil"
 )
 
@@ -1157,12 +1157,12 @@ func TestRealtimeDepartureFiltering(t *testing.T) {
 	assert.Equal(t, nil, err)
 	assert.Equal(t, []gtfs.Departure{}, departures)
 
-	// And we can filter on storage.RouteType
+	// And we can filter on model.RouteType
 	departures, err = rt.Departures(
 		"center",
 		time.Date(2020, 1, 16, 0, 0, 0, 0, time.UTC),
 		10*time.Hour,
-		-1, "", -1, []storage.RouteType{storage.RouteTypeBus})
+		-1, "", -1, []model.RouteType{model.RouteTypeBus})
 	assert.NoError(t, err)
 	assert.Equal(t, []gtfs.Departure{
 		{
@@ -1178,7 +1178,7 @@ func TestRealtimeDepartureFiltering(t *testing.T) {
 		"center",
 		time.Date(2020, 1, 16, 0, 0, 0, 0, time.UTC),
 		10*time.Hour,
-		-1, "", -1, []storage.RouteType{storage.RouteTypeRail})
+		-1, "", -1, []model.RouteType{model.RouteTypeRail})
 	assert.NoError(t, err)
 	assert.Equal(t, []gtfs.Departure{
 		{
@@ -1193,7 +1193,7 @@ func TestRealtimeDepartureFiltering(t *testing.T) {
 		"center",
 		time.Date(2020, 1, 16, 0, 0, 0, 0, time.UTC),
 		10*time.Hour,
-		-1, "", -1, []storage.RouteType{storage.RouteTypeMonorail})
+		-1, "", -1, []model.RouteType{model.RouteTypeMonorail})
 	assert.NoError(t, err)
 	assert.Equal(t, []gtfs.Departure{}, departures)
 

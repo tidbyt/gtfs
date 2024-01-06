@@ -7,6 +7,7 @@ import (
 
 	"github.com/gocarina/gocsv"
 
+	"tidbyt.dev/gtfs/model"
 	"tidbyt.dev/gtfs/storage"
 )
 
@@ -65,7 +66,7 @@ func ParseAgency(writer storage.FeedWriter, data io.Reader) (map[string]bool, st
 			return nil, "", fmt.Errorf("missing agency_url")
 		}
 
-		writer.WriteAgency(&storage.Agency{
+		writer.WriteAgency(&model.Agency{
 			ID:       a.ID,
 			Name:     a.Name,
 			URL:      a.URL,

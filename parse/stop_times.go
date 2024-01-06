@@ -10,6 +10,7 @@ import (
 	"github.com/gocarina/gocsv"
 	"github.com/pkg/errors"
 
+	"tidbyt.dev/gtfs/model"
 	"tidbyt.dev/gtfs/storage"
 )
 
@@ -59,7 +60,7 @@ func ParseStopTimes(
 	stops map[string]bool,
 ) (string, string, error) {
 
-	stopTimes := []storage.StopTime{}
+	stopTimes := []model.StopTime{}
 
 	stopSeq := map[string][]int{}
 
@@ -98,7 +99,7 @@ func ParseStopTimes(
 			maxDeparture = departureTime
 		}
 
-		stopTime := storage.StopTime{
+		stopTime := model.StopTime{
 			TripID:       st.TripID,
 			StopID:       st.StopID,
 			Headsign:     st.Headsign,

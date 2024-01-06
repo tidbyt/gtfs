@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"tidbyt.dev/gtfs/model"
 	"tidbyt.dev/gtfs/storage"
 )
 
@@ -16,7 +17,7 @@ func TestParseRoutes(t *testing.T) {
 		name     string
 		content  string
 		agencies map[string]bool
-		routes   []*storage.Route
+		routes   []*model.Route
 		err      bool
 	}{
 		{
@@ -25,7 +26,7 @@ func TestParseRoutes(t *testing.T) {
 route_id,route_short_name,route_type
 1,1,3`,
 			map[string]bool{},
-			[]*storage.Route{&storage.Route{
+			[]*model.Route{&model.Route{
 				ID:        "1",
 				ShortName: "1",
 				Type:      3,
@@ -41,7 +42,7 @@ route_id,route_short_name,route_type
 route_id,route_long_name,route_type
 1,Route One,3`,
 			map[string]bool{},
-			[]*storage.Route{&storage.Route{
+			[]*model.Route{&model.Route{
 				ID:        "1",
 				LongName:  "Route One",
 				Type:      3,
@@ -58,25 +59,25 @@ route_id,agency_id,route_short_name,route_long_name,route_desc,route_type,route_
 r1,a1,one,Route One,Description1,3,http://one/,FFFFF0,00000F
 r2,a2,two,Route Two,Description2,3,http://two/,FFFFF1,00000E`,
 			map[string]bool{"a1": true, "a2": true},
-			[]*storage.Route{
-				&storage.Route{
+			[]*model.Route{
+				&model.Route{
 					ID:        "r1",
 					AgencyID:  "a1",
 					ShortName: "one",
 					LongName:  "Route One",
 					Desc:      "Description1",
-					Type:      storage.RouteType(3),
+					Type:      model.RouteType(3),
 					URL:       "http://one/",
 					Color:     "FFFFF0",
 					TextColor: "00000F",
 				},
-				&storage.Route{
+				&model.Route{
 					ID:        "r2",
 					AgencyID:  "a2",
 					ShortName: "two",
 					LongName:  "Route Two",
 					Desc:      "Description2",
-					Type:      storage.RouteType(3),
+					Type:      model.RouteType(3),
 					URL:       "http://two/",
 					Color:     "FFFFF1",
 					TextColor: "00000E",

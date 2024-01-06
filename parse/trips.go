@@ -6,6 +6,7 @@ import (
 
 	"github.com/gocarina/gocsv"
 
+	"tidbyt.dev/gtfs/model"
 	"tidbyt.dev/gtfs/storage"
 )
 
@@ -58,7 +59,7 @@ func ParseTrips(
 			return nil, fmt.Errorf("invalid direction_id '%d'", t.DirectionID)
 		}
 
-		err := writer.WriteTrip(&storage.Trip{
+		err := writer.WriteTrip(&model.Trip{
 			ID:          t.ID,
 			RouteID:     t.RouteID,
 			ServiceID:   t.ServiceID,

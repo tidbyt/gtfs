@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"tidbyt.dev/gtfs"
-	"tidbyt.dev/gtfs/storage"
+	"tidbyt.dev/gtfs/model"
 	"tidbyt.dev/gtfs/testutil"
 )
 
@@ -26,11 +26,11 @@ func testGTFSStaticIntegrationNearbyStops(t *testing.T, backend string) {
 	// station.
 	stops, err := g.NearbyStops(40.6968986, -73.955555, 4, nil)
 	assert.NoError(t, err)
-	stopMap := make(map[string]storage.Stop)
+	stopMap := make(map[string]model.Stop)
 	for _, s := range stops {
 		stopMap[s.ID] = s
 	}
-	assert.Equal(t, map[string]storage.Stop{
+	assert.Equal(t, map[string]model.Stop{
 		"G31": {
 			ID:            "G31",
 			Lat:           40.700377,

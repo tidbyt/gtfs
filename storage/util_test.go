@@ -4,10 +4,12 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"tidbyt.dev/gtfs/model"
 )
 
 func TestHaversineDistance(t *testing.T) {
-	var loc = map[string]Stop{
+	var loc = map[string]model.Stop{
 		"nyc":    {ID: "nyc", Lat: 40.700000, Lon: -74.100000},
 		"philly": {ID: "philly", Lat: 40.000000, Lon: -75.200000},
 		"sf":     {ID: "sf", Lat: 37.800000, Lon: -122.500000},

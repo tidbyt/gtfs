@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/lib/pq"
+
+	"tidbyt.dev/gtfs/model"
 )
 
 const (
@@ -22,8 +24,8 @@ type PSQLStorage struct {
 type PSQLFeedWriter struct {
 	id          string
 	db          *sql.DB
-	tripBuf     []*Trip
-	stopTimeBuf []*StopTime
+	tripBuf     []*model.Trip
+	stopTimeBuf []*model.StopTime
 }
 
 type PSQLFeedReader struct {
@@ -449,7 +451,7 @@ CREATE TABLE IF NOT EXISTS calendar_dates (
 	}, nil
 }
 
-func (w *PSQLFeedWriter) WriteAgency(a *Agency) error {
+func (w *PSQLFeedWriter) WriteAgency(a *model.Agency) error {
 	_, err := w.db.Exec(`
 INSERT INTO agency (hash, id, name, url, timezone)
 VALUES ($1, $2, $3, $4, $5)`,
@@ -465,7 +467,7 @@ VALUES ($1, $2, $3, $4, $5)`,
 	return nil
 }
 
-func (w *PSQLFeedWriter) WriteStop(stop *Stop) error {
+func (w *PSQLFeedWriter) WriteStop(stop *model.Stop) error {
 	var parentStation sql.NullString
 	if stop.ParentStation != "" {
 		parentStation = sql.NullString{
@@ -494,7 +496,7 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
 	return nil
 }
 
-func (w *PSQLFeedWriter) WriteRoute(route *Route) error {
+func (w *PSQLFeedWriter) WriteRoute(route *model.Route) error {
 	_, err := w.db.Exec(`
 INSERT INTO routes (hash, id, agency_id, short_name, long_name, description, type, url, color, text_color)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
@@ -519,7 +521,7 @@ func (w *PSQLFeedWriter) BeginTrips() error {
 	return nil
 }
 
-func (w *PSQLFeedWriter) WriteTrip(trip *Trip) error {
+func (w *PSQLFeedWriter) WriteTrip(trip *model.Trip) error {
 	w.tripBuf = append(w.tripBuf, trip)
 
 	if len(w.tripBuf) >= PSQLTripBatchSize {
@@ -581,7 +583,7 @@ func (w *PSQLFeedWriter) flushTrips() error {
 	return nil
 }
 
-func (w *PSQLFeedWriter) WriteCalendar(cal *Calendar) error {
+func (w *PSQLFeedWriter) WriteCalendar(cal *model.Calendar) error {
 	mon, tue, wed, thu, fri, sat, sun := 0, 0, 0, 0, 0, 0, 0
 	if cal.Weekday&(1<<time.Monday) != 0 {
 		mon = 1
@@ -621,7 +623,7 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
 	return nil
 }
 
-func (w *PSQLFeedWriter) WriteCalendarDate(cd *CalendarDate) error {
+func (w *PSQLFeedWriter) WriteCalendarDate(cd *model.CalendarDate) error {
 	_, err := w.db.Exec(`
 INSERT INTO calendar_dates (hash, service_id, date, exception_type)
 VALUES ($1, $2, $3, $4)`,
@@ -642,7 +644,7 @@ func (w *PSQLFeedWriter) BeginStopTimes() error {
 	return nil
 }
 
-func (w *PSQLFeedWriter) WriteStopTime(stopTime *StopTime) error {
+func (w *PSQLFeedWriter) WriteStopTime(stopTime *model.StopTime) error {
 	w.stopTimeBuf = append(w.stopTimeBuf, stopTime)
 
 	if len(w.stopTimeBuf) >= PSQLStopTimeBatchSize {
@@ -714,7 +716,7 @@ func (s *PSQLFeedWriter) Close() error {
 	return nil
 }
 
-func (r *PSQLFeedReader) Agencies() ([]*Agency, error) {
+func (r *PSQLFeedReader) Agencies() ([]*model.Agency, error) {
 	rows, err := r.db.Query(`
 SELECT id, name, url, timezone
 FROM agency
@@ -724,9 +726,9 @@ WHERE hash = $1`, r.id)
 	}
 	defer rows.Close()
 
-	agencies := []*Agency{}
+	agencies := []*model.Agency{}
 	for rows.Next() {
-		a := &Agency{}
+		a := &model.Agency{}
 		err := rows.Scan(&a.ID, &a.Name, &a.URL, &a.Timezone)
 		if err != nil {
 			return nil, fmt.Errorf("scanning agency: %w", err)
@@ -737,7 +739,7 @@ WHERE hash = $1`, r.id)
 	return agencies, nil
 }
 
-func (r *PSQLFeedReader) Stops() ([]*Stop, error) {
+func (r *PSQLFeedReader) Stops() ([]*model.Stop, error) {
 	rows, err := r.db.Query(`
 SELECT id, code, name, description, lat, lon, url, location_type, parent_station, platform_code
 FROM stops
@@ -747,9 +749,9 @@ WHERE hash = $1`, r.id)
 	}
 	defer rows.Close()
 
-	stops := []*Stop{}
+	stops := []*model.Stop{}
 	for rows.Next() {
-		s := &Stop{}
+		s := &model.Stop{}
 		parentStation := sql.NullString{}
 		err := rows.Scan(
 			&s.ID,
@@ -777,7 +779,7 @@ WHERE hash = $1`, r.id)
 	return stops, nil
 }
 
-func (r *PSQLFeedReader) Routes() ([]*Route, error) {
+func (r *PSQLFeedReader) Routes() ([]*model.Route, error) {
 	rows, err := r.db.Query(`
 SELECT id, agency_id, short_name, long_name, description, type, url, color, text_color
 FROM routes
@@ -787,9 +789,9 @@ WHERE hash = $1`, r.id)
 	}
 	defer rows.Close()
 
-	routes := []*Route{}
+	routes := []*model.Route{}
 	for rows.Next() {
-		route := &Route{}
+		route := &model.Route{}
 		err := rows.Scan(
 			&route.ID,
 			&route.AgencyID,
@@ -810,7 +812,7 @@ WHERE hash = $1`, r.id)
 	return routes, nil
 }
 
-func (r *PSQLFeedReader) Trips() ([]*Trip, error) {
+func (r *PSQLFeedReader) Trips() ([]*model.Trip, error) {
 	rows, err := r.db.Query(`
 SELECT id, route_id, service_id, headsign, short_name, direction_id
 FROM trips
@@ -820,9 +822,9 @@ WHERE hash = $1`, r.id)
 	}
 	defer rows.Close()
 
-	trips := []*Trip{}
+	trips := []*model.Trip{}
 	for rows.Next() {
-		t := &Trip{}
+		t := &model.Trip{}
 		err := rows.Scan(
 			&t.ID,
 			&t.RouteID,
@@ -840,7 +842,7 @@ WHERE hash = $1`, r.id)
 	return trips, nil
 }
 
-func (r *PSQLFeedReader) StopTimes() ([]*StopTime, error) {
+func (r *PSQLFeedReader) StopTimes() ([]*model.StopTime, error) {
 	rows, err := r.db.Query(`
 SELECT trip_id, stop_id, headsign, stop_sequence, arrival_time, departure_time
 FROM stop_times
@@ -850,9 +852,9 @@ WHERE hash = $1`, r.id)
 	}
 	defer rows.Close()
 
-	stopTimes := []*StopTime{}
+	stopTimes := []*model.StopTime{}
 	for rows.Next() {
-		st := &StopTime{}
+		st := &model.StopTime{}
 		err := rows.Scan(
 			&st.TripID,
 			&st.StopID,
@@ -870,7 +872,7 @@ WHERE hash = $1`, r.id)
 	return stopTimes, nil
 }
 
-func (r *PSQLFeedReader) Calendars() ([]*Calendar, error) {
+func (r *PSQLFeedReader) Calendars() ([]*model.Calendar, error) {
 	rows, err := r.db.Query(`
 SELECT service_id, start_date, end_date, monday, tuesday, wednesday, thursday, friday, saturday, sunday
 FROM calendar
@@ -880,7 +882,7 @@ WHERE hash = $1`, r.id)
 	}
 	defer rows.Close()
 
-	calendars := []*Calendar{}
+	calendars := []*model.Calendar{}
 	for rows.Next() {
 		var serviceID, startDate, endDate string
 		var monday, tuesday, wednesday, thursday, friday, saturday, sunday bool
@@ -921,7 +923,7 @@ WHERE hash = $1`, r.id)
 		if sunday {
 			weekday |= 1 << time.Sunday
 		}
-		calendars = append(calendars, &Calendar{
+		calendars = append(calendars, &model.Calendar{
 			ServiceID: serviceID,
 			StartDate: startDate,
 			EndDate:   endDate,
@@ -932,7 +934,7 @@ WHERE hash = $1`, r.id)
 	return calendars, nil
 }
 
-func (r *PSQLFeedReader) CalendarDates() ([]*CalendarDate, error) {
+func (r *PSQLFeedReader) CalendarDates() ([]*model.CalendarDate, error) {
 	rows, err := r.db.Query(`
 SELECT service_id, date, exception_type
 FROM calendar_dates
@@ -942,9 +944,9 @@ WHERE hash = $1`, r.id)
 	}
 	defer rows.Close()
 
-	calendarDates := []*CalendarDate{}
+	calendarDates := []*model.CalendarDate{}
 	for rows.Next() {
-		cd := &CalendarDate{}
+		cd := &model.CalendarDate{}
 		err := rows.Scan(
 			&cd.ServiceID,
 			&cd.Date,
@@ -1197,10 +1199,10 @@ WHERE stop_times.hash = $1 AND
 
 	events := []*StopTimeEvent{}
 	for rows.Next() {
-		stop := &Stop{}
-		stopTime := &StopTime{}
-		trip := &Trip{}
-		route := &Route{}
+		stop := &model.Stop{}
+		stopTime := &model.StopTime{}
+		trip := &model.Trip{}
+		route := &model.Route{}
 		parentStation := sql.NullString{}
 
 		err = rows.Scan(
@@ -1257,14 +1259,14 @@ WHERE stop_times.hash = $1 AND
 	// NOTE: this used to be done in the main query as a left
 	// outer join, but performance was awful. May not even need to
 	// retrieve this data at all.
-	parents := map[string]*Stop{}
+	parents := map[string]*model.Stop{}
 	for _, event := range events {
 		if event.Stop.ParentStation == "" {
 			continue
 		}
 
 		if _, ok := parents[event.Stop.ParentStation]; !ok {
-			parents[event.Stop.ParentStation] = &Stop{}
+			parents[event.Stop.ParentStation] = &model.Stop{}
 		}
 	}
 
@@ -1293,7 +1295,7 @@ WHERE hash = $1 AND
 	defer rows.Close()
 
 	for rows.Next() {
-		stop := &Stop{}
+		stop := &model.Stop{}
 		err = rows.Scan(
 			&stop.ID,
 			&stop.Code,
@@ -1319,7 +1321,7 @@ WHERE hash = $1 AND
 	return events, nil
 }
 
-func (r *PSQLFeedReader) RouteDirections(stopID string) ([]*RouteDirection, error) {
+func (r *PSQLFeedReader) RouteDirections(stopID string) ([]*model.RouteDirection, error) {
 	rows, err := r.db.Query(`
 SELECT trips.route_id, trips.direction_id, trips.headsign, stop_times.headsign
 FROM stop_times
@@ -1364,13 +1366,13 @@ WHERE stop_times.hash = $1 AND
 		deduped[key][headsign] = true
 	}
 
-	routeDirections := []*RouteDirection{}
+	routeDirections := []*model.RouteDirection{}
 	for key, headsignSet := range deduped {
 		headsigns := []string{}
 		for headsign := range headsignSet {
 			headsigns = append(headsigns, headsign)
 		}
-		routeDirections = append(routeDirections, &RouteDirection{
+		routeDirections = append(routeDirections, &model.RouteDirection{
 			StopID:      stopID,
 			RouteID:     key.RouteID,
 			DirectionID: key.DirectionID,
@@ -1381,7 +1383,7 @@ WHERE stop_times.hash = $1 AND
 	return routeDirections, nil
 }
 
-func (r *PSQLFeedReader) getStops() ([]*Stop, error) {
+func (r *PSQLFeedReader) getStops() ([]*model.Stop, error) {
 	row, err := r.db.Query(`
 SELECT
     stops.id,
@@ -1405,9 +1407,9 @@ WHERE
 		return nil, fmt.Errorf("querying for nearby stops: %w", err)
 	}
 
-	stops := []*Stop{}
+	stops := []*model.Stop{}
 	for row.Next() {
-		stop := &Stop{}
+		stop := &model.Stop{}
 		parentStation := sql.NullString{}
 		err = row.Scan(
 			&stop.ID,
@@ -1435,7 +1437,7 @@ WHERE
 	return stops, nil
 }
 
-func (r *PSQLFeedReader) getStopsByRouteType(routeTypes []RouteType) ([]*Stop, error) {
+func (r *PSQLFeedReader) getStopsByRouteType(routeTypes []model.RouteType) ([]*model.Stop, error) {
 	queryValues := []interface{}{r.id}
 	for _, rt := range routeTypes {
 		queryValues = append(queryValues, rt)
@@ -1486,9 +1488,9 @@ WHERE
 	}
 	defer rows.Close()
 
-	allStops := map[string]*Stop{}
+	allStops := map[string]*model.Stop{}
 	for rows.Next() {
-		s := &Stop{}
+		s := &model.Stop{}
 		stopParentStation := sql.NullString{}
 		parentID := sql.NullString{}
 		parentCode := sql.NullString{}
@@ -1529,7 +1531,7 @@ WHERE
 		}
 
 		if parentID.Valid {
-			allStops[parentID.String] = &Stop{
+			allStops[parentID.String] = &model.Stop{
 				ID:           parentID.String,
 				Code:         parentCode.String,
 				Name:         parentName.String,
@@ -1537,7 +1539,7 @@ WHERE
 				Lat:          parentLat.Float64,
 				Lon:          parentLon.Float64,
 				URL:          parentURL.String,
-				LocationType: LocationType(parentLocationType.Int64),
+				LocationType: model.LocationType(parentLocationType.Int64),
 				PlatformCode: parentPlatformCode.String,
 			}
 		} else {
@@ -1545,7 +1547,7 @@ WHERE
 		}
 	}
 
-	stops := []*Stop{}
+	stops := []*model.Stop{}
 	for _, s := range allStops {
 		stops = append(stops, s)
 	}
@@ -1553,8 +1555,8 @@ WHERE
 	return stops, nil
 }
 
-func (r *PSQLFeedReader) NearbyStops(lat float64, lng float64, limit int, routeTypes []RouteType) ([]Stop, error) {
-	var stops []*Stop
+func (r *PSQLFeedReader) NearbyStops(lat float64, lng float64, limit int, routeTypes []model.RouteType) ([]model.Stop, error) {
+	var stops []*model.Stop
 	var err error
 
 	// TODO: Look into using postgis for this.
@@ -1586,7 +1588,7 @@ func (r *PSQLFeedReader) NearbyStops(lat float64, lng float64, limit int, routeT
 		stops = stops[:limit]
 	}
 
-	res := []Stop{}
+	res := []model.Stop{}
 	for _, s := range stops {
 		res = append(res, *s)
 	}

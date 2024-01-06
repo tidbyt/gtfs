@@ -1,4 +1,4 @@
-package storage
+package model
 
 import (
 	"strconv"
@@ -106,4 +106,13 @@ type CalendarDate struct {
 	Date          string
 	ExceptionType int8
 	// TODO: Enum for exception types?
+}
+
+// Holds all Headsigns for trips passing through a stop, for a given
+// route and direction.
+type RouteDirection struct {
+	StopID      string
+	RouteID     string
+	DirectionID int8
+	Headsigns   []string
 }
