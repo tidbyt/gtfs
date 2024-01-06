@@ -57,7 +57,6 @@ type CalendarDate struct {
 	ServiceID     string
 	Date          string
 	ExceptionType ExceptionType
-	// TODO: Enum for exception types?
 }
 
 type Stop struct {
