@@ -82,17 +82,6 @@ func (s Static) RouteDirections(stopID string) ([]*model.RouteDirection, error) 
 	return rds, nil
 }
 
-type Departure struct {
-	StopID       string
-	RouteID      string
-	TripID       string
-	StopSequence uint32
-	DirectionID  int8
-	Time         time.Time
-	Headsign     string
-	Delay        time.Duration
-}
-
 // Translates a time offset into a GTFS style HHMMSS string.
 func gtfsDate(offset time.Duration) string {
 	h := int(offset.Hours())
@@ -182,9 +171,9 @@ func (s Static) Departures(
 	routeID string,
 	directionID int8,
 	routeTypes []model.RouteType,
-) ([]Departure, error) {
+) ([]model.Departure, error) {
 
-	departures := []Departure{}
+	departures := []model.Departure{}
 
 	if numDepartures == 0 {
 		return departures, nil
@@ -251,7 +240,7 @@ func (s Static) Departures(
 			}
 
 			if !startTime.After(departureTime) {
-				departures = append(departures, Departure{
+				departures = append(departures, model.Departure{
 					StopID:       event.Stop.ID,
 					RouteID:      event.Trip.RouteID,
 					TripID:       event.Trip.ID,

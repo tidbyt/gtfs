@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"tidbyt.dev/gtfs"
+	"tidbyt.dev/gtfs/model"
 	"tidbyt.dev/gtfs/testutil"
 )
 
@@ -74,7 +74,7 @@ func testStaticDeparturesWindowing(t *testing.T, backend string) {
 	// station should have 2 L train departures
 	departures, err := g.Departures("14", time.Date(2020, 2, 4, 6, 0, 0, 0, time.UTC), 30*time.Minute, -1, "", -1, nil)
 	assert.NoError(t, err)
-	assert.Equal(t, []gtfs.Departure{
+	assert.Equal(t, []model.Departure{
 		{
 			StopID:       "14",
 			RouteID:      "L",
@@ -96,7 +96,7 @@ func testStaticDeparturesWindowing(t *testing.T, backend string) {
 	// boundary of the window.
 	departures, err = g.Departures("14", time.Date(2020, 2, 4, 6, 10, 0, 0, time.UTC), 50*time.Minute, -1, "", -1, nil)
 	assert.NoError(t, err)
-	assert.Equal(t, []gtfs.Departure{
+	assert.Equal(t, []model.Departure{
 		{
 			StopID:       "14",
 			RouteID:      "L",
@@ -144,7 +144,7 @@ func testStaticDeparturesWindowing(t *testing.T, backend string) {
 	// Start window at 6:30 and earlier departures are cut
 	departures, err = g.Departures("14", time.Date(2020, 2, 4, 6, 30, 0, 0, time.UTC), 50*time.Minute, -1, "", -1, nil)
 	assert.NoError(t, err)
-	assert.Equal(t, []gtfs.Departure{
+	assert.Equal(t, []model.Departure{
 		{
 			StopID:       "14",
 			RouteID:      "L",
@@ -178,17 +178,17 @@ func testStaticDeparturesWindowing(t *testing.T, backend string) {
 	// Push window past last departure and we get nothing
 	departures, err = g.Departures("14", time.Date(2020, 2, 4, 6, 51, 0, 0, time.UTC), 50*time.Minute, -1, "", -1, nil)
 	assert.NoError(t, err)
-	assert.Equal(t, []gtfs.Departure{}, departures)
+	assert.Equal(t, []model.Departure{}, departures)
 
 	// Non-existent stop also gives us nothing
 	departures, err = g.Departures("FOO", time.Date(2020, 2, 4, 6, 30, 0, 0, time.UTC), 50*time.Minute, -1, "", -1, nil)
 	assert.NoError(t, err)
-	assert.Equal(t, []gtfs.Departure{}, departures)
+	assert.Equal(t, []model.Departure{}, departures)
 
 	// But a large enough window reaches next day's departures.
 	departures, err = g.Departures("14", time.Date(2020, 2, 4, 6, 51, 0, 0, time.UTC), duration(23, 50, 0), -1, "", -1, nil)
 	assert.NoError(t, err)
-	assert.Equal(t, []gtfs.Departure{
+	assert.Equal(t, []model.Departure{
 		{
 			StopID:       "14",
 			RouteID:      "L",
@@ -222,7 +222,7 @@ func testStaticDeparturesWindowing(t *testing.T, backend string) {
 	// Outside of calendar, we get nothing (Jan 1st 2021 was a Friday)
 	departures, err = g.Departures("14", time.Date(2021, 1, 1, 6, 30, 0, 0, time.UTC), 50*time.Minute, -1, "", -1, nil)
 	assert.NoError(t, err)
-	assert.Equal(t, []gtfs.Departure{}, departures)
+	assert.Equal(t, []model.Departure{}, departures)
 }
 
 func testStaticDeparturesWeekendSchedule(t *testing.T, backend string) {
@@ -271,7 +271,7 @@ func testStaticDeparturesWeekendSchedule(t *testing.T, backend string) {
 	// Feb 14th is a Friday, so weekday schedule applies.
 	departures, err := g.Departures("6a", time.Date(2020, 2, 14, 9, 0, 0, 0, time.UTC), 20*time.Minute, -1, "", -1, nil)
 	assert.NoError(t, err)
-	assert.Equal(t, []gtfs.Departure{
+	assert.Equal(t, []model.Departure{
 		{
 			StopID:       "6a",
 			RouteID:      "L",
@@ -285,7 +285,7 @@ func testStaticDeparturesWeekendSchedule(t *testing.T, backend string) {
 	// Feb 15th will be on weekend schedule
 	departures, err = g.Departures("6a", time.Date(2020, 2, 15, 9, 0, 0, 0, time.UTC), 20*time.Minute, -1, "", -1, nil)
 	assert.NoError(t, err)
-	assert.Equal(t, []gtfs.Departure{
+	assert.Equal(t, []model.Departure{
 		{
 			StopID:       "6a",
 			RouteID:      "L",
@@ -299,7 +299,7 @@ func testStaticDeparturesWeekendSchedule(t *testing.T, backend string) {
 	// Window spanning from 14th into 15th can capture stops from both days
 	departures, err = g.Departures("6a", time.Date(2020, 2, 14, 9, 29, 0, 0, time.UTC), 24*time.Hour-1*time.Second, -1, "", -1, nil)
 	assert.NoError(t, err)
-	assert.Equal(t, []gtfs.Departure{
+	assert.Equal(t, []model.Departure{
 		{
 			StopID:       "6a",
 			RouteID:      "L",
@@ -356,7 +356,7 @@ func testStaticDeparturesTimezones(t *testing.T, backend string) {
 	// Querying using the transit agency's time zone
 	departures, err := g.Departures("6a", time.Date(2020, 2, 3, 9, 0, 0, 0, tzNYC), 20*time.Minute, -1, "", -1, nil)
 	assert.NoError(t, err)
-	assert.Equal(t, []gtfs.Departure{
+	assert.Equal(t, []model.Departure{
 		{
 			StopID:       "6a",
 			RouteID:      "L",
@@ -370,7 +370,7 @@ func testStaticDeparturesTimezones(t *testing.T, backend string) {
 	// Querying using UTC, which in February 2020 is NYC+5
 	departures, err = g.Departures("6a", time.Date(2020, 2, 3, 14, 0, 0, 0, time.UTC), 20*time.Minute, -1, "", -1, nil)
 	assert.NoError(t, err)
-	assert.Equal(t, []gtfs.Departure{
+	assert.Equal(t, []model.Departure{
 		{
 			StopID:       "6a",
 			RouteID:      "L",
@@ -385,7 +385,7 @@ func testStaticDeparturesTimezones(t *testing.T, backend string) {
 	// large enough window
 	departures, err = g.Departures("6a", time.Date(2020, 2, 2, 22, 0, 0, 0, time.UTC), 20*time.Hour, -1, "", -1, nil)
 	assert.NoError(t, err)
-	assert.Equal(t, []gtfs.Departure{
+	assert.Equal(t, []model.Departure{
 		{
 			StopID:       "6a",
 			RouteID:      "L",
@@ -433,7 +433,7 @@ func testStaticDeparturesOvernightTrip(t *testing.T, backend string) {
 	// but is still part of the feb 9 trip.
 	departures, err := g.Departures("3a", time.Date(2020, 2, 9, 23, 30, 0, 0, tzNYC), 2*time.Hour, -1, "", -1, nil)
 	assert.NoError(t, err)
-	assert.Equal(t, []gtfs.Departure{
+	assert.Equal(t, []model.Departure{
 		{
 			StopID:       "3a",
 			RouteID:      "L",
@@ -447,7 +447,7 @@ func testStaticDeparturesOvernightTrip(t *testing.T, backend string) {
 	// It's also there if we query for departures on the 10th
 	departures, err = g.Departures("3a", time.Date(2020, 2, 10, 0, 15, 0, 0, tzNYC), 20*time.Minute, -1, "", -1, nil)
 	assert.NoError(t, err)
-	assert.Equal(t, []gtfs.Departure{
+	assert.Equal(t, []model.Departure{
 		{
 			StopID:       "3a",
 			RouteID:      "L",
@@ -462,7 +462,7 @@ func testStaticDeparturesOvernightTrip(t *testing.T, backend string) {
 	// NYC+5)
 	departures, err = g.Departures("3a", time.Date(2020, 2, 10, 4, 30, 0, 0, time.UTC), 2*time.Hour, -1, "", -1, nil)
 	assert.NoError(t, err)
-	assert.Equal(t, []gtfs.Departure{
+	assert.Equal(t, []model.Departure{
 		{
 			StopID:       "3a",
 			RouteID:      "L",
@@ -474,7 +474,7 @@ func testStaticDeparturesOvernightTrip(t *testing.T, backend string) {
 	}, departures)
 	departures, err = g.Departures("3a", time.Date(2020, 2, 10, 5, 15, 0, 0, time.UTC), 20*time.Minute, -1, "", -1, nil)
 	assert.NoError(t, err)
-	assert.Equal(t, []gtfs.Departure{
+	assert.Equal(t, []model.Departure{
 		{
 			StopID:       "3a",
 			RouteID:      "L",
@@ -533,7 +533,7 @@ func testStaticDeparturesCalendarDateOverride(t *testing.T, backend string) {
 	// disabled.
 	departures, err := g.Departures("8a", time.Date(2020, 2, 9, 22, 0, 0, 0, tzNYC), 2*time.Hour, -1, "", -1, nil)
 	assert.NoError(t, err)
-	assert.Equal(t, []gtfs.Departure{
+	assert.Equal(t, []model.Departure{
 		{
 			StopID:       "8a",
 			RouteID:      "L",
@@ -544,24 +544,24 @@ func testStaticDeparturesCalendarDateOverride(t *testing.T, backend string) {
 	}, departures)
 	departures, err = g.Departures("8a", time.Date(2020, 2, 8, 22, 0, 0, 0, tzNYC), 5*time.Hour, -1, "", -1, nil)
 	assert.NoError(t, err)
-	assert.Equal(t, []gtfs.Departure{}, departures)
+	assert.Equal(t, []model.Departure{}, departures)
 	departures, err = g.Departures("3a", time.Date(2020, 2, 8, 22, 0, 0, 0, tzNYC), 5*time.Hour, -1, "", -1, nil)
 	assert.NoError(t, err)
-	assert.Equal(t, []gtfs.Departure{}, departures)
+	assert.Equal(t, []model.Departure{}, departures)
 
 	// The trips from the 16th are also disabled, including spill
 	// over into the 17th. The 15th is still up though, including
 	// spill over into the 16th.
 	departures, err = g.Departures("8a", time.Date(2020, 2, 16, 22, 0, 0, 0, tzNYC), 5*time.Hour, -1, "", -1, nil)
 	assert.NoError(t, err)
-	assert.Equal(t, []gtfs.Departure{}, departures)
+	assert.Equal(t, []model.Departure{}, departures)
 	departures, err = g.Departures("3a", time.Date(2020, 2, 16, 22, 0, 0, 0, tzNYC), 5*time.Hour, -1, "", -1, nil)
 	assert.NoError(t, err)
-	assert.Equal(t, []gtfs.Departure{}, departures)
+	assert.Equal(t, []model.Departure{}, departures)
 
 	departures, err = g.Departures("8a", time.Date(2020, 2, 15, 22, 0, 0, 0, tzNYC), 5*time.Hour, -1, "", -1, nil)
 	assert.NoError(t, err)
-	assert.Equal(t, []gtfs.Departure{
+	assert.Equal(t, []model.Departure{
 		{
 			StopID:       "8a",
 			RouteID:      "L",
@@ -572,7 +572,7 @@ func testStaticDeparturesCalendarDateOverride(t *testing.T, backend string) {
 	}, departures)
 	departures, err = g.Departures("3a", time.Date(2020, 2, 15, 22, 0, 0, 0, tzNYC), 5*time.Hour, -1, "", -1, nil)
 	assert.NoError(t, err)
-	assert.Equal(t, []gtfs.Departure{
+	assert.Equal(t, []model.Departure{
 		{
 			StopID:       "3a",
 			RouteID:      "L",
@@ -586,7 +586,7 @@ func testStaticDeparturesCalendarDateOverride(t *testing.T, backend string) {
 	// into the the 25th. 25th remains disabled.
 	departures, err = g.Departures("8a", time.Date(2020, 2, 24, 22, 0, 0, 0, tzNYC), 5*time.Hour, -1, "", -1, nil)
 	assert.NoError(t, err)
-	assert.Equal(t, []gtfs.Departure{
+	assert.Equal(t, []model.Departure{
 		{
 			StopID:       "8a",
 			RouteID:      "L",
@@ -597,7 +597,7 @@ func testStaticDeparturesCalendarDateOverride(t *testing.T, backend string) {
 	}, departures)
 	departures, err = g.Departures("3a", time.Date(2020, 2, 24, 22, 0, 0, 0, tzNYC), 5*time.Hour, -1, "", -1, nil)
 	assert.NoError(t, err)
-	assert.Equal(t, []gtfs.Departure{
+	assert.Equal(t, []model.Departure{
 		{
 			StopID:       "3a",
 			RouteID:      "L",
@@ -608,7 +608,7 @@ func testStaticDeparturesCalendarDateOverride(t *testing.T, backend string) {
 	}, departures)
 	departures, err = g.Departures("8a", time.Date(2020, 2, 25, 22, 0, 0, 0, tzNYC), 5*time.Hour, -1, "", -1, nil)
 	assert.NoError(t, err)
-	assert.Equal(t, []gtfs.Departure{}, departures)
+	assert.Equal(t, []model.Departure{}, departures)
 }
 
 // Real world schedules seem to provide departure_time for all stops,
@@ -652,7 +652,7 @@ func testStaticDeparturesNoDepartureFromFinalStop(t *testing.T, backend string) 
 	assert.Equal(t, nil, err)
 	assert.Equal(t, 1, len(departures))
 
-	assert.Equal(t, []gtfs.Departure{
+	assert.Equal(t, []model.Departure{
 		{
 			StopID:       "14",
 			RouteID:      "L",
@@ -664,7 +664,7 @@ func testStaticDeparturesNoDepartureFromFinalStop(t *testing.T, backend string) 
 
 	departures, err = g.Departures("3a", time.Date(2020, 2, 9, 23, 0, 0, 0, tzNYC), 2*time.Hour, -1, "", -1, nil)
 	assert.Equal(t, nil, err)
-	assert.Equal(t, []gtfs.Departure{}, departures)
+	assert.Equal(t, []model.Departure{}, departures)
 }
 
 func testStaticDeparturesFiltering(t *testing.T, backend string) {
@@ -730,7 +730,7 @@ func testStaticDeparturesFiltering(t *testing.T, backend string) {
 	departures, err := g.Departures("alpha", time.Date(2020, 3, 14, 0, 0, 0, 0, tzNYC), longDuration, 1, "", -1, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(departures))
-	assert.Equal(t, []gtfs.Departure{
+	assert.Equal(t, []model.Departure{
 		{
 			StopID:       "alpha",
 			RouteID:      "RouteA",
@@ -743,18 +743,18 @@ func testStaticDeparturesFiltering(t *testing.T, backend string) {
 	// Specifying non-existent route and/or direction -> no results
 	departures, err = g.Departures("alpha", time.Date(2020, 3, 14, 0, 0, 0, 0, tzNYC), longDuration, 1, "", 1, nil)
 	assert.NoError(t, err)
-	assert.Equal(t, []gtfs.Departure{}, departures)
+	assert.Equal(t, []model.Departure{}, departures)
 	departures, err = g.Departures("alpha", time.Date(2020, 3, 14, 0, 0, 0, 0, tzNYC), longDuration, 1, "RouteC", 0, nil)
 	assert.NoError(t, err)
-	assert.Equal(t, []gtfs.Departure{}, departures)
+	assert.Equal(t, []model.Departure{}, departures)
 	departures, err = g.Departures("alpha", time.Date(2020, 3, 14, 0, 0, 0, 0, tzNYC), longDuration, 1, "RouteC", -1, nil)
 	assert.NoError(t, err)
-	assert.Equal(t, []gtfs.Departure{}, departures)
+	assert.Equal(t, []model.Departure{}, departures)
 
 	// The beta stop has departures in 2 direction
 	departures, err = g.Departures("beta", time.Date(2020, 3, 14, 0, 0, 0, 0, tzNYC), longDuration, 1, "", 0, nil)
 	assert.NoError(t, err)
-	assert.Equal(t, []gtfs.Departure{
+	assert.Equal(t, []model.Departure{
 		{
 			StopID:       "beta",
 			RouteID:      "RouteA",
@@ -766,7 +766,7 @@ func testStaticDeparturesFiltering(t *testing.T, backend string) {
 
 	departures, err = g.Departures("beta", time.Date(2020, 3, 14, 0, 0, 0, 0, tzNYC), longDuration, 1, "", 1, nil)
 	assert.NoError(t, err)
-	assert.Equal(t, []gtfs.Departure{
+	assert.Equal(t, []model.Departure{
 		{
 			StopID:       "beta",
 			RouteID:      "RouteA",
@@ -779,7 +779,7 @@ func testStaticDeparturesFiltering(t *testing.T, backend string) {
 	// Pushing start time back discards earlier departures
 	departures, err = g.Departures("beta", time.Date(2020, 3, 14, 12, 0, 0, 0, tzNYC), longDuration, 1, "", 0, nil)
 	assert.NoError(t, err)
-	assert.Equal(t, []gtfs.Departure{
+	assert.Equal(t, []model.Departure{
 		{
 			StopID:       "beta",
 			RouteID:      "RouteA",
@@ -790,7 +790,7 @@ func testStaticDeparturesFiltering(t *testing.T, backend string) {
 	}, departures)
 	departures, err = g.Departures("beta", time.Date(2020, 3, 14, 12, 0, 0, 0, tzNYC), longDuration, 1, "RouteA", 1, nil)
 	assert.NoError(t, err)
-	assert.Equal(t, []gtfs.Departure{
+	assert.Equal(t, []model.Departure{
 		{
 			StopID:       "beta",
 			RouteID:      "RouteA",
@@ -915,7 +915,7 @@ func testStaticDeparturesWithParentStations(t *testing.T, backend string) {
 		},
 	})
 
-	getDeps := func(stopID string) []gtfs.Departure {
+	getDeps := func(stopID string) []model.Departure {
 		// Feb 3rd is a Monday.
 		departures, err := g.Departures(
 			stopID,

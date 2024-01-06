@@ -6,7 +6,6 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"tidbyt.dev/gtfs"
 	"tidbyt.dev/gtfs/model"
 )
 
@@ -35,7 +34,7 @@ func departures(cmd *cobra.Command, args []string) error {
 	stopID := args[0]
 
 	type DepartureProvider interface {
-		Departures(string, time.Time, time.Duration, int, string, int8, []model.RouteType) ([]gtfs.Departure, error)
+		Departures(string, time.Time, time.Duration, int, string, int8, []model.RouteType) ([]model.Departure, error)
 	}
 
 	var provider DepartureProvider

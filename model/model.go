@@ -116,3 +116,14 @@ type RouteDirection struct {
 	DirectionID int8
 	Headsigns   []string
 }
+
+type Departure struct {
+	StopID       string
+	RouteID      string
+	TripID       string
+	StopSequence uint32
+	DirectionID  int8
+	Time         time.Time
+	Headsign     string
+	Delay        time.Duration
+}
