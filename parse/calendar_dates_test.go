@@ -16,7 +16,7 @@ func TestCalendarDates(t *testing.T) {
 	for _, tc := range []struct {
 		name     string
 		content  string
-		expected []*model.CalendarDate
+		expected []model.CalendarDate
 		minDate  string
 		maxDate  string
 		err      bool
@@ -26,8 +26,8 @@ func TestCalendarDates(t *testing.T) {
 			`
 service_id,date,exception_type
 s1,20170101,1`,
-			[]*model.CalendarDate{
-				&model.CalendarDate{
+			[]model.CalendarDate{
+				model.CalendarDate{
 					ServiceID:     "s1",
 					Date:          "20170101",
 					ExceptionType: model.ExceptionTypeAdded,
@@ -45,18 +45,18 @@ service_id,date,exception_type
 s1,20170101,1
 s1,20170102,2
 s2,20170103,1`,
-			[]*model.CalendarDate{
-				&model.CalendarDate{
+			[]model.CalendarDate{
+				model.CalendarDate{
 					ServiceID:     "s1",
 					Date:          "20170101",
 					ExceptionType: model.ExceptionTypeAdded,
 				},
-				&model.CalendarDate{
+				model.CalendarDate{
 					ServiceID:     "s1",
 					Date:          "20170102",
 					ExceptionType: model.ExceptionTypeRemoved,
 				},
-				&model.CalendarDate{
+				model.CalendarDate{
 					ServiceID:     "s2",
 					Date:          "20170103",
 					ExceptionType: model.ExceptionTypeAdded,

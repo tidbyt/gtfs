@@ -155,14 +155,14 @@ func testBasicReadingAndWriting(t *testing.T, sb StorageBuilder) {
 	require.NoError(t, err)
 
 	// Write some Agencies
-	err = writer.WriteAgency(&model.Agency{
+	err = writer.WriteAgency(model.Agency{
 		ID:       "agency_1",
 		Name:     "Agency 1",
 		URL:      "http://example.com/agency_1",
 		Timezone: "America/Los_Angeles",
 	})
 	require.NoError(t, err)
-	err = writer.WriteAgency(&model.Agency{
+	err = writer.WriteAgency(model.Agency{
 		ID:       "agency_2",
 		Name:     "Agency 2",
 		URL:      "http://example.com/agency_2",
@@ -171,7 +171,7 @@ func testBasicReadingAndWriting(t *testing.T, sb StorageBuilder) {
 	require.NoError(t, err)
 
 	// Write some Stops
-	err = writer.WriteStop(&model.Stop{
+	err = writer.WriteStop(model.Stop{
 		ID:            "stop_1",
 		Code:          "stop_code_1",
 		Name:          "Stop 1",
@@ -184,7 +184,7 @@ func testBasicReadingAndWriting(t *testing.T, sb StorageBuilder) {
 		PlatformCode:  "platform_1",
 	})
 	require.NoError(t, err)
-	err = writer.WriteStop(&model.Stop{
+	err = writer.WriteStop(model.Stop{
 		ID:            "stop_2",
 		Code:          "stop_code_2",
 		Name:          "Stop 2",
@@ -199,7 +199,7 @@ func testBasicReadingAndWriting(t *testing.T, sb StorageBuilder) {
 	require.NoError(t, err)
 
 	// Write some Routes
-	err = writer.WriteRoute(&model.Route{
+	err = writer.WriteRoute(model.Route{
 		ID:        "route_1",
 		AgencyID:  "agency_1",
 		ShortName: "1",
@@ -211,7 +211,7 @@ func testBasicReadingAndWriting(t *testing.T, sb StorageBuilder) {
 		TextColor: "FFFF22",
 	})
 	require.NoError(t, err)
-	err = writer.WriteRoute(&model.Route{
+	err = writer.WriteRoute(model.Route{
 		ID:        "route_2",
 		AgencyID:  "agency_2",
 		ShortName: "2",
@@ -226,7 +226,7 @@ func testBasicReadingAndWriting(t *testing.T, sb StorageBuilder) {
 
 	// Write some Trips
 	require.NoError(t, writer.BeginTrips())
-	err = writer.WriteTrip(&model.Trip{
+	err = writer.WriteTrip(model.Trip{
 		ID:          "trip_1",
 		RouteID:     "route_1",
 		ServiceID:   "service_1",
@@ -235,7 +235,7 @@ func testBasicReadingAndWriting(t *testing.T, sb StorageBuilder) {
 		DirectionID: 0,
 	})
 	require.NoError(t, err)
-	err = writer.WriteTrip(&model.Trip{
+	err = writer.WriteTrip(model.Trip{
 		ID:          "trip_2",
 		RouteID:     "route_2",
 		ServiceID:   "service_2",
@@ -248,7 +248,7 @@ func testBasicReadingAndWriting(t *testing.T, sb StorageBuilder) {
 
 	// Write some StopTimes
 	require.NoError(t, writer.BeginStopTimes())
-	err = writer.WriteStopTime(&model.StopTime{
+	err = writer.WriteStopTime(model.StopTime{
 		TripID:       "trip_1",
 		StopID:       "stop_1",
 		Headsign:     "StopTime headsign 1",
@@ -257,7 +257,7 @@ func testBasicReadingAndWriting(t *testing.T, sb StorageBuilder) {
 		Departure:    "142034",
 	})
 	require.NoError(t, err)
-	err = writer.WriteStopTime(&model.StopTime{
+	err = writer.WriteStopTime(model.StopTime{
 		TripID:       "trip_2",
 		StopID:       "stop_2",
 		Headsign:     "StopTime headsign 2",
@@ -269,14 +269,14 @@ func testBasicReadingAndWriting(t *testing.T, sb StorageBuilder) {
 	require.NoError(t, writer.EndStopTimes())
 
 	// Write some Calendars
-	err = writer.WriteCalendar(&model.Calendar{
+	err = writer.WriteCalendar(model.Calendar{
 		ServiceID: "service_1",
 		StartDate: "20200101",
 		EndDate:   "20201231",
 		Weekday:   0x7f,
 	})
 	require.NoError(t, err)
-	err = writer.WriteCalendar(&model.Calendar{
+	err = writer.WriteCalendar(model.Calendar{
 		ServiceID: "service_2",
 		StartDate: "20210101",
 		EndDate:   "20211231",
@@ -285,13 +285,13 @@ func testBasicReadingAndWriting(t *testing.T, sb StorageBuilder) {
 	require.NoError(t, err)
 
 	// Write some CalendarDates
-	err = writer.WriteCalendarDate(&model.CalendarDate{
+	err = writer.WriteCalendarDate(model.CalendarDate{
 		ServiceID:     "service_1",
 		Date:          "20210101",
 		ExceptionType: 1,
 	})
 	require.NoError(t, err)
-	err = writer.WriteCalendarDate(&model.CalendarDate{
+	err = writer.WriteCalendarDate(model.CalendarDate{
 		ServiceID:     "service_2",
 		Date:          "20200101",
 		ExceptionType: 2,
@@ -308,7 +308,7 @@ func testBasicReadingAndWriting(t *testing.T, sb StorageBuilder) {
 
 	agencies, err := reader.Agencies()
 	assert.NoError(t, err)
-	assert.ElementsMatch(t, []*model.Agency{
+	assert.ElementsMatch(t, []model.Agency{
 		{
 			ID:       "agency_1",
 			Name:     "Agency 1",
@@ -325,7 +325,7 @@ func testBasicReadingAndWriting(t *testing.T, sb StorageBuilder) {
 
 	stops, err := reader.Stops()
 	assert.NoError(t, err)
-	assert.ElementsMatch(t, []*model.Stop{
+	assert.ElementsMatch(t, []model.Stop{
 		{
 			ID:            "stop_1",
 			Code:          "stop_code_1",
@@ -354,7 +354,7 @@ func testBasicReadingAndWriting(t *testing.T, sb StorageBuilder) {
 
 	routes, err := reader.Routes()
 	assert.NoError(t, err)
-	assert.ElementsMatch(t, []*model.Route{
+	assert.ElementsMatch(t, []model.Route{
 		{
 			ID:        "route_1",
 			AgencyID:  "agency_1",
@@ -381,7 +381,7 @@ func testBasicReadingAndWriting(t *testing.T, sb StorageBuilder) {
 
 	trips, err := reader.Trips()
 	assert.NoError(t, err)
-	assert.ElementsMatch(t, []*model.Trip{
+	assert.ElementsMatch(t, []model.Trip{
 		{
 			ID:          "trip_1",
 			RouteID:     "route_1",
@@ -402,7 +402,7 @@ func testBasicReadingAndWriting(t *testing.T, sb StorageBuilder) {
 
 	stopTimes, err := reader.StopTimes()
 	assert.NoError(t, err)
-	assert.ElementsMatch(t, []*model.StopTime{
+	assert.ElementsMatch(t, []model.StopTime{
 		{
 			TripID:       "trip_1",
 			StopID:       "stop_1",
@@ -423,7 +423,7 @@ func testBasicReadingAndWriting(t *testing.T, sb StorageBuilder) {
 
 	calendars, err := reader.Calendars()
 	assert.NoError(t, err)
-	assert.ElementsMatch(t, []*model.Calendar{
+	assert.ElementsMatch(t, []model.Calendar{
 		{
 			ServiceID: "service_1",
 			StartDate: "20200101",
@@ -440,7 +440,7 @@ func testBasicReadingAndWriting(t *testing.T, sb StorageBuilder) {
 
 	calendarDates, err := reader.CalendarDates()
 	assert.NoError(t, err)
-	assert.ElementsMatch(t, []*model.CalendarDate{
+	assert.ElementsMatch(t, []model.CalendarDate{
 		{
 			ServiceID:     "service_1",
 			Date:          "20210101",
@@ -747,14 +747,14 @@ func testStopTimeEventFilter_TimeStopdirection(t *testing.T, sb StorageBuilder) 
 	})
 	assert.NoError(t, err)
 	assert.Equal(t, 3, len(events))
-	assert.Equal(t, &model.StopTime{
+	assert.Equal(t, model.StopTime{
 		TripID:       "3",
 		StopID:       "a",
 		StopSequence: 1,
 		Arrival:      "020400",
 		Departure:    "020430",
 	}, events[0].StopTime)
-	assert.Equal(t, &model.StopTime{
+	assert.Equal(t, model.StopTime{
 		TripID:       "4",
 		StopID:       "a",
 		StopSequence: 2,
@@ -772,7 +772,7 @@ func testStopTimeEventFilter_TimeStopdirection(t *testing.T, sb StorageBuilder) 
 	})
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(events))
-	assert.Equal(t, &model.StopTime{
+	assert.Equal(t, model.StopTime{
 		TripID:       "7",
 		StopID:       "b",
 		StopSequence: 2,
@@ -788,7 +788,7 @@ func testStopTimeEventFilter_TimeStopdirection(t *testing.T, sb StorageBuilder) 
 	})
 	assert.NoError(t, err)
 	assert.Equal(t, 3, len(events))
-	assert.Equal(t, &model.StopTime{
+	assert.Equal(t, model.StopTime{
 		TripID:       "7",
 		StopID:       "b",
 		StopSequence: 2,
@@ -796,14 +796,14 @@ func testStopTimeEventFilter_TimeStopdirection(t *testing.T, sb StorageBuilder) 
 		Departure:    "061330",
 	}, events[0].StopTime)
 
-	assert.Equal(t, &model.StopTime{
+	assert.Equal(t, model.StopTime{
 		TripID:       "8",
 		StopID:       "b",
 		StopSequence: 1,
 		Arrival:      "071400",
 		Departure:    "071430",
 	}, events[1].StopTime)
-	assert.Equal(t, &model.StopTime{
+	assert.Equal(t, model.StopTime{
 		TripID:       "8",
 		StopID:       "a",
 		StopSequence: 2,
@@ -819,7 +819,7 @@ func testStopTimeEventFilter_TimeStopdirection(t *testing.T, sb StorageBuilder) 
 	})
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(events))
-	assert.Equal(t, &model.StopTime{
+	assert.Equal(t, model.StopTime{
 		TripID:       "1",
 		StopID:       "a",
 		StopSequence: 1,
@@ -837,14 +837,14 @@ func testStopTimeEventFilter_TimeStopdirection(t *testing.T, sb StorageBuilder) 
 	})
 	assert.NoError(t, err)
 	assert.Equal(t, 2, len(events))
-	assert.Equal(t, &model.StopTime{
+	assert.Equal(t, model.StopTime{
 		TripID:       "1",
 		StopID:       "b",
 		StopSequence: 2,
 		Arrival:      "000100",
 		Departure:    "000130",
 	}, events[0].StopTime)
-	assert.Equal(t, &model.StopTime{
+	assert.Equal(t, model.StopTime{
 		TripID:       "3",
 		StopID:       "b",
 		StopSequence: 2,
@@ -862,14 +862,14 @@ func testStopTimeEventFilter_TimeStopdirection(t *testing.T, sb StorageBuilder) 
 	})
 	assert.NoError(t, err)
 	assert.Equal(t, 2, len(events))
-	assert.Equal(t, &model.StopTime{
+	assert.Equal(t, model.StopTime{
 		TripID:       "6",
 		StopID:       "a",
 		StopSequence: 2,
 		Arrival:      "051100",
 		Departure:    "051130",
 	}, events[0].StopTime)
-	assert.Equal(t, &model.StopTime{
+	assert.Equal(t, model.StopTime{
 		TripID:       "8",
 		StopID:       "a",
 		StopSequence: 2,
@@ -940,28 +940,28 @@ func testStopTimeEventFilter_RouteAndRouteType(t *testing.T, sb StorageBuilder) 
 	})
 	assert.NoError(t, err)
 	assert.Equal(t, 4, len(events))
-	assert.Equal(t, &model.StopTime{
+	assert.Equal(t, model.StopTime{
 		TripID:       "r1_t1",
 		StopID:       "a",
 		StopSequence: 1,
 		Arrival:      "000000",
 		Departure:    "000030",
 	}, events[0].StopTime)
-	assert.Equal(t, &model.StopTime{
+	assert.Equal(t, model.StopTime{
 		TripID:       "r1_t1",
 		StopID:       "b",
 		StopSequence: 2,
 		Arrival:      "000100",
 		Departure:    "000130",
 	}, events[1].StopTime)
-	assert.Equal(t, &model.StopTime{
+	assert.Equal(t, model.StopTime{
 		TripID:       "r1_t2",
 		StopID:       "b",
 		StopSequence: 1,
 		Arrival:      "000200",
 		Departure:    "000230",
 	}, events[2].StopTime)
-	assert.Equal(t, &model.StopTime{
+	assert.Equal(t, model.StopTime{
 		TripID:       "r1_t2",
 		StopID:       "a",
 		StopSequence: 2,
@@ -979,7 +979,7 @@ func testStopTimeEventFilter_RouteAndRouteType(t *testing.T, sb StorageBuilder) 
 	})
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(events))
-	assert.Equal(t, &model.StopTime{
+	assert.Equal(t, model.StopTime{
 		TripID:       "r1_t2",
 		StopID:       "b",
 		StopSequence: 1,
@@ -996,14 +996,14 @@ func testStopTimeEventFilter_RouteAndRouteType(t *testing.T, sb StorageBuilder) 
 	})
 	assert.NoError(t, err)
 	assert.Equal(t, 2, len(events))
-	assert.Equal(t, &model.StopTime{
+	assert.Equal(t, model.StopTime{
 		TripID:       "r1_t1",
 		StopID:       "b",
 		StopSequence: 2,
 		Arrival:      "000100",
 		Departure:    "000130",
 	}, events[0].StopTime)
-	assert.Equal(t, &model.StopTime{
+	assert.Equal(t, model.StopTime{
 		TripID:       "r1_t2",
 		StopID:       "b",
 		StopSequence: 1,
@@ -1021,7 +1021,7 @@ func testStopTimeEventFilter_RouteAndRouteType(t *testing.T, sb StorageBuilder) 
 	})
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(events))
-	assert.Equal(t, &model.StopTime{
+	assert.Equal(t, model.StopTime{
 		TripID:       "r2_t1",
 		StopID:       "a",
 		StopSequence: 1,
@@ -1083,7 +1083,7 @@ func testStopTimeEventFilter_Service(t *testing.T, sb StorageBuilder) {
 	})
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(events))
-	assert.Equal(t, &model.StopTime{
+	assert.Equal(t, model.StopTime{
 		TripID:       "q2_t1",
 		StopID:       "b",
 		StopSequence: 2,
@@ -1099,14 +1099,14 @@ func testStopTimeEventFilter_Service(t *testing.T, sb StorageBuilder) {
 	})
 	assert.NoError(t, err)
 	assert.Equal(t, 2, len(events))
-	assert.Equal(t, &model.StopTime{
+	assert.Equal(t, model.StopTime{
 		TripID:       "q1_t1",
 		StopID:       "b",
 		StopSequence: 2,
 		Arrival:      "000200",
 		Departure:    "000230",
 	}, events[0].StopTime)
-	assert.Equal(t, &model.StopTime{
+	assert.Equal(t, model.StopTime{
 		TripID:       "q1_t2",
 		StopID:       "b",
 		StopSequence: 1,
@@ -1125,14 +1125,14 @@ func testStopTimeEventFilter_Service(t *testing.T, sb StorageBuilder) {
 	})
 	assert.NoError(t, err)
 	assert.Equal(t, 2, len(events))
-	assert.Equal(t, &model.StopTime{
+	assert.Equal(t, model.StopTime{
 		TripID:       "q1_t2",
 		StopID:       "a",
 		StopSequence: 2,
 		Arrival:      "000300",
 		Departure:    "000330",
 	}, events[0].StopTime)
-	assert.Equal(t, &model.StopTime{
+	assert.Equal(t, model.StopTime{
 		TripID:       "q2_t1",
 		StopID:       "a",
 		StopSequence: 1,
@@ -1175,7 +1175,7 @@ func testStopTimeEvent_AllTheFields(t *testing.T, sb StorageBuilder) {
 	})
 	assert.NoError(t, err)
 	assert.Equal(t, 2, len(events))
-	assert.Equal(t, &model.StopTime{
+	assert.Equal(t, model.StopTime{
 		TripID:       "1",
 		StopID:       "137",
 		StopSequence: 1,
@@ -1183,7 +1183,7 @@ func testStopTimeEvent_AllTheFields(t *testing.T, sb StorageBuilder) {
 		Departure:    "234531",
 		Headsign:     "stop headsign 1",
 	}, events[0].StopTime)
-	assert.Equal(t, &model.Trip{
+	assert.Equal(t, model.Trip{
 		ID:          "1",
 		RouteID:     "r",
 		ServiceID:   "weekday",
@@ -1191,7 +1191,7 @@ func testStopTimeEvent_AllTheFields(t *testing.T, sb StorageBuilder) {
 		ShortName:   "trip1",
 		DirectionID: 1,
 	}, events[0].Trip)
-	assert.Equal(t, &model.Route{
+	assert.Equal(t, model.Route{
 		ID:        "r",
 		ShortName: "R",
 		LongName:  "The R",
@@ -1201,7 +1201,7 @@ func testStopTimeEvent_AllTheFields(t *testing.T, sb StorageBuilder) {
 		Color:     "FF0000",
 		TextColor: "0000FF",
 	}, events[0].Route)
-	assert.Equal(t, &model.Stop{
+	assert.Equal(t, model.Stop{
 		ID:            "137",
 		Code:          "code137",
 		Name:          "Stop 137",
@@ -1213,8 +1213,8 @@ func testStopTimeEvent_AllTheFields(t *testing.T, sb StorageBuilder) {
 		ParentStation: "",
 		PlatformCode:  "pcode137",
 	}, events[0].Stop)
-	assert.Nil(t, events[0].ParentStation)
-	assert.Equal(t, &model.StopTime{
+	assert.Equal(t, "", events[0].ParentStation.ID)
+	assert.Equal(t, model.StopTime{
 		TripID:       "1",
 		StopID:       "138",
 		StopSequence: 2,
@@ -1224,7 +1224,7 @@ func testStopTimeEvent_AllTheFields(t *testing.T, sb StorageBuilder) {
 	}, events[1].StopTime)
 	assert.Equal(t, events[0].Trip, events[1].Trip)
 	assert.Equal(t, events[0].Route, events[1].Route)
-	assert.Equal(t, &model.Stop{
+	assert.Equal(t, model.Stop{
 		ID:            "138",
 		Code:          "code138",
 		Name:          "Stop 138",
@@ -1236,7 +1236,7 @@ func testStopTimeEvent_AllTheFields(t *testing.T, sb StorageBuilder) {
 		ParentStation: "139",
 		PlatformCode:  "pcode138",
 	}, events[1].Stop)
-	assert.Equal(t, &model.Stop{
+	assert.Equal(t, model.Stop{
 		ID:            "139",
 		Code:          "code139",
 		Name:          "Station 139",
@@ -1296,14 +1296,14 @@ func testStopTimeEvent_ParentStations(t *testing.T, sb StorageBuilder) {
 	})
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(events))
-	assert.Equal(t, &model.StopTime{
+	assert.Equal(t, model.StopTime{
 		TripID:       "t3",
 		StopID:       "stop3",
 		StopSequence: 3,
 		Arrival:      "030400",
 		Departure:    "030515",
 	}, events[0].StopTime)
-	assert.Equal(t, &model.Stop{
+	assert.Equal(t, model.Stop{
 		ID:            "stop3",
 		Name:          "Stop 3",
 		Lat:           47.13,
@@ -1311,7 +1311,7 @@ func testStopTimeEvent_ParentStations(t *testing.T, sb StorageBuilder) {
 		LocationType:  model.LocationTypeStop,
 		ParentStation: "station_b",
 	}, events[0].Stop)
-	assert.Equal(t, &model.Stop{
+	assert.Equal(t, model.Stop{
 		ID:           "station_b",
 		Name:         "Station B",
 		Lat:          47.15,
@@ -1411,8 +1411,8 @@ func testRouteDirections(t *testing.T, sb StorageBuilder) {
 		},
 	})
 
-	orderPlease := func(rds []*model.RouteDirection) []*model.RouteDirection {
-		rds = append([]*model.RouteDirection{}, rds...)
+	orderPlease := func(rds []model.RouteDirection) []model.RouteDirection {
+		rds = append([]model.RouteDirection{}, rds...)
 		sort.Slice(rds, func(i, j int) bool {
 			return 0 > strings.Compare(
 				fmt.Sprintf(
@@ -1437,7 +1437,7 @@ func testRouteDirections(t *testing.T, sb StorageBuilder) {
 	// stop alpha
 	rds, err := reader.RouteDirections("alpha")
 	assert.NoError(t, err)
-	assert.Equal(t, []*model.RouteDirection{
+	assert.Equal(t, []model.RouteDirection{
 		{
 			StopID:      "alpha",
 			RouteID:     "RouteA",
@@ -1461,7 +1461,7 @@ func testRouteDirections(t *testing.T, sb StorageBuilder) {
 	// stop beta
 	rds, err = reader.RouteDirections("beta")
 	assert.NoError(t, err)
-	assert.Equal(t, []*model.RouteDirection{
+	assert.Equal(t, []model.RouteDirection{
 		{
 			StopID:      "beta",
 			RouteID:     "RouteA",
@@ -1485,7 +1485,7 @@ func testRouteDirections(t *testing.T, sb StorageBuilder) {
 	// stop gamma
 	rds, err = reader.RouteDirections("gamma")
 	assert.NoError(t, err)
-	assert.Equal(t, []*model.RouteDirection{
+	assert.Equal(t, []model.RouteDirection{
 		{
 			StopID:      "gamma",
 			RouteID:     "RouteA",
@@ -1503,7 +1503,7 @@ func testRouteDirections(t *testing.T, sb StorageBuilder) {
 	// stop delta
 	rds, err = reader.RouteDirections("delta")
 	assert.NoError(t, err)
-	assert.Equal(t, []*model.RouteDirection{
+	assert.Equal(t, []model.RouteDirection{
 		{
 			StopID:      "delta",
 			RouteID:     "RouteA",
@@ -1522,7 +1522,7 @@ func testRouteDirections(t *testing.T, sb StorageBuilder) {
 	// No directions here, since nothing ever departs from epsilon.
 	rds, err = reader.RouteDirections("epsilon")
 	assert.NoError(t, err)
-	assert.Equal(t, []*model.RouteDirection{}, rds)
+	assert.Equal(t, []model.RouteDirection{}, rds)
 }
 
 func testNearbyStops(t *testing.T, sb StorageBuilder) {
@@ -2230,7 +2230,7 @@ func testMultipleFeedsInStorage(t *testing.T, sb StorageBuilder) {
 	// Verify agency records
 	agencies1, err := first.Agencies()
 	require.NoError(t, err)
-	assert.Equal(t, []*model.Agency{{
+	assert.Equal(t, []model.Agency{{
 		ID:       "agency1",
 		Name:     "Agency 1",
 		URL:      "http://example.com",
@@ -2239,7 +2239,7 @@ func testMultipleFeedsInStorage(t *testing.T, sb StorageBuilder) {
 
 	agencies2, err := second.Agencies()
 	require.NoError(t, err)
-	assert.Equal(t, []*model.Agency{{
+	assert.Equal(t, []model.Agency{{
 		ID:       "agency2",
 		Name:     "Agency 2",
 		URL:      "http://example2.com",
@@ -2254,7 +2254,7 @@ func testMultipleFeedsInStorage(t *testing.T, sb StorageBuilder) {
 	stops1, err := first.Stops()
 	require.NoError(t, err)
 	sort.Slice(stops1, func(i, j int) bool { return stops1[i].ID < stops1[j].ID })
-	assert.Equal(t, []*model.Stop{{
+	assert.Equal(t, []model.Stop{{
 		ID:            "station_a",
 		Name:          "Station A",
 		Lat:           5,
@@ -2280,7 +2280,7 @@ func testMultipleFeedsInStorage(t *testing.T, sb StorageBuilder) {
 	stops2, err := second.Stops()
 	require.NoError(t, err)
 	sort.Slice(stops2, func(i, j int) bool { return stops2[i].ID < stops2[j].ID })
-	assert.Equal(t, []*model.Stop{{
+	assert.Equal(t, []model.Stop{{
 		ID:            "station_b",
 		Name:          "Station B",
 		Lat:           11,
@@ -2311,7 +2311,7 @@ func testMultipleFeedsInStorage(t *testing.T, sb StorageBuilder) {
 	// Routes
 	routes1, err := first.Routes()
 	require.NoError(t, err)
-	assert.Equal(t, []*model.Route{{
+	assert.Equal(t, []model.Route{{
 		ID:        "r1",
 		ShortName: "R1",
 		Type:      3,
@@ -2321,7 +2321,7 @@ func testMultipleFeedsInStorage(t *testing.T, sb StorageBuilder) {
 
 	routes2, err := second.Routes()
 	require.NoError(t, err)
-	assert.Equal(t, []*model.Route{{
+	assert.Equal(t, []model.Route{{
 		ID:        "r2",
 		ShortName: "R2",
 		Type:      3,
@@ -2336,7 +2336,7 @@ func testMultipleFeedsInStorage(t *testing.T, sb StorageBuilder) {
 	// Trips
 	trips1, err := first.Trips()
 	require.NoError(t, err)
-	assert.Equal(t, []*model.Trip{{
+	assert.Equal(t, []model.Trip{{
 		ID:        "t1",
 		ServiceID: "svc1",
 		RouteID:   "r1",
@@ -2344,7 +2344,7 @@ func testMultipleFeedsInStorage(t *testing.T, sb StorageBuilder) {
 
 	trips2, err := second.Trips()
 	require.NoError(t, err)
-	assert.Equal(t, []*model.Trip{{
+	assert.Equal(t, []model.Trip{{
 		ID:          "t2",
 		ServiceID:   "svc2",
 		RouteID:     "r2",
@@ -2358,7 +2358,7 @@ func testMultipleFeedsInStorage(t *testing.T, sb StorageBuilder) {
 	// StopTimes
 	stopTimes1, err := first.StopTimes()
 	require.NoError(t, err)
-	assert.Equal(t, []*model.StopTime{{
+	assert.Equal(t, []model.StopTime{{
 		TripID:       "t1",
 		StopID:       "stop1",
 		StopSequence: 1,
@@ -2374,7 +2374,7 @@ func testMultipleFeedsInStorage(t *testing.T, sb StorageBuilder) {
 
 	stopTimes2, err := second.StopTimes()
 	require.NoError(t, err)
-	assert.Equal(t, []*model.StopTime{{
+	assert.Equal(t, []model.StopTime{{
 		TripID:       "t2",
 		StopID:       "stop3",
 		StopSequence: 1,
@@ -2395,7 +2395,7 @@ func testMultipleFeedsInStorage(t *testing.T, sb StorageBuilder) {
 	// Calendar
 	calendar1, err := first.Calendars()
 	require.NoError(t, err)
-	assert.Equal(t, []*model.Calendar{{
+	assert.Equal(t, []model.Calendar{{
 		ServiceID: "svc1",
 		Weekday:   1 << time.Monday,
 		StartDate: "20170101",
@@ -2404,7 +2404,7 @@ func testMultipleFeedsInStorage(t *testing.T, sb StorageBuilder) {
 
 	calendar2, err := second.Calendars()
 	require.NoError(t, err)
-	assert.Equal(t, []*model.Calendar{{
+	assert.Equal(t, []model.Calendar{{
 		ServiceID: "svc2",
 		Weekday:   1 << time.Tuesday,
 		StartDate: "20170601",
@@ -2418,7 +2418,7 @@ func testMultipleFeedsInStorage(t *testing.T, sb StorageBuilder) {
 	// CalendarDates
 	calendarDates1, err := first.CalendarDates()
 	require.NoError(t, err)
-	assert.Equal(t, []*model.CalendarDate{{
+	assert.Equal(t, []model.CalendarDate{{
 		ServiceID:     "svc1",
 		Date:          "20170101",
 		ExceptionType: 1,
@@ -2426,7 +2426,7 @@ func testMultipleFeedsInStorage(t *testing.T, sb StorageBuilder) {
 
 	calendarDates2, err := second.CalendarDates()
 	require.NoError(t, err)
-	assert.Equal(t, []*model.CalendarDate{{
+	assert.Equal(t, []model.CalendarDate{{
 		ServiceID:     "svc2",
 		Date:          "20171226",
 		ExceptionType: 2,
@@ -2439,7 +2439,7 @@ func testMultipleFeedsInStorage(t *testing.T, sb StorageBuilder) {
 	// RouteDirections
 	routeDirections1, err := first.RouteDirections("stop1")
 	require.NoError(t, err)
-	assert.Equal(t, []*model.RouteDirection{{
+	assert.Equal(t, []model.RouteDirection{{
 		StopID:      "stop1",
 		RouteID:     "r1",
 		DirectionID: 0,
@@ -2448,7 +2448,7 @@ func testMultipleFeedsInStorage(t *testing.T, sb StorageBuilder) {
 
 	routeDirections2, err := second.RouteDirections("stop3")
 	require.NoError(t, err)
-	assert.Equal(t, []*model.RouteDirection{{
+	assert.Equal(t, []model.RouteDirection{{
 		StopID:      "stop3",
 		RouteID:     "r2",
 		DirectionID: 1,
@@ -2496,33 +2496,33 @@ func testMultipleFeedsInStorage(t *testing.T, sb StorageBuilder) {
 	require.NoError(t, err)
 	require.Equal(t, 2, len(events1))
 	assert.Equal(t, &storage.StopTimeEvent{
-		StopTime: &model.StopTime{
+		StopTime: model.StopTime{
 			TripID:       "t1",
 			StopID:       "stop1",
 			StopSequence: 1,
 			Arrival:      "010000",
 			Departure:    "010115",
 		},
-		Trip: &model.Trip{
+		Trip: model.Trip{
 			ID:        "t1",
 			RouteID:   "r1",
 			ServiceID: "svc1",
 		},
-		Route: &model.Route{
+		Route: model.Route{
 			ID:        "r1",
 			Type:      model.RouteTypeBus,
 			ShortName: "R1",
 			Color:     "FFFFFF",
 			TextColor: "000000",
 		},
-		Stop: &model.Stop{
+		Stop: model.Stop{
 			ID:            "stop1",
 			Name:          "Stop 1",
 			Lat:           1,
 			Lon:           2,
 			ParentStation: "station_a",
 		},
-		ParentStation: &model.Stop{
+		ParentStation: model.Stop{
 			ID:           "station_a",
 			Name:         "Station A",
 			Lat:          5,
@@ -2535,34 +2535,34 @@ func testMultipleFeedsInStorage(t *testing.T, sb StorageBuilder) {
 	require.NoError(t, err)
 	require.Equal(t, 2, len(events2))
 	assert.Equal(t, &storage.StopTimeEvent{
-		StopTime: &model.StopTime{
+		StopTime: model.StopTime{
 			TripID:       "t2",
 			StopID:       "stop3",
 			StopSequence: 1,
 			Arrival:      "010000",
 			Departure:    "010115",
 		},
-		Trip: &model.Trip{
+		Trip: model.Trip{
 			ID:          "t2",
 			RouteID:     "r2",
 			ServiceID:   "svc2",
 			DirectionID: 1,
 		},
-		Route: &model.Route{
+		Route: model.Route{
 			ID:        "r2",
 			Type:      model.RouteTypeBus,
 			ShortName: "R2",
 			Color:     "FFFFFF",
 			TextColor: "000000",
 		},
-		Stop: &model.Stop{
+		Stop: model.Stop{
 			ID:            "stop3",
 			Name:          "Stop 3",
 			Lat:           7,
 			Lon:           8,
 			ParentStation: "station_b",
 		},
-		ParentStation: &model.Stop{
+		ParentStation: model.Stop{
 			ID:           "station_b",
 			Name:         "Station B",
 			Lat:          11,

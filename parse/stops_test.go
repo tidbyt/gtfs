@@ -16,7 +16,7 @@ func TestParseStops(t *testing.T) {
 	for _, tc := range []struct {
 		name    string
 		content string
-		stops   []*model.Stop
+		stops   []model.Stop
 		err     bool
 	}{
 		{
@@ -24,7 +24,7 @@ func TestParseStops(t *testing.T) {
 			`
 stop_id,stop_name,stop_lat,stop_lon
 s,name,1.1,2.2`,
-			[]*model.Stop{&model.Stop{
+			[]model.Stop{model.Stop{
 				ID:   "s",
 				Name: "name",
 				Lat:  1.1,
@@ -43,8 +43,8 @@ location_type,stop_id,stop_code,stop_name,stop_desc,stop_lat,stop_lon,stop_url,p
 3,g,code_g,Generic,desc_g,,,url_g,ps,
 4,b,code_b,Boarding,desc_b,,,url_b,ps,
 `,
-			[]*model.Stop{
-				&model.Stop{
+			[]model.Stop{
+				model.Stop{
 					ID:            "b",
 					Code:          "code_b",
 					Name:          "Boarding",
@@ -53,7 +53,7 @@ location_type,stop_id,stop_code,stop_name,stop_desc,stop_lat,stop_lon,stop_url,p
 					ParentStation: "ps",
 					LocationType:  model.LocationTypeBoardingArea,
 				},
-				&model.Stop{
+				model.Stop{
 					ID:            "e",
 					Code:          "code_e",
 					Name:          "Entrance",
@@ -64,7 +64,7 @@ location_type,stop_id,stop_code,stop_name,stop_desc,stop_lat,stop_lon,stop_url,p
 					ParentStation: "ps",
 					LocationType:  model.LocationTypeEntranceExit,
 				},
-				&model.Stop{
+				model.Stop{
 					ID:            "g",
 					Code:          "code_g",
 					Name:          "Generic",
@@ -73,7 +73,7 @@ location_type,stop_id,stop_code,stop_name,stop_desc,stop_lat,stop_lon,stop_url,p
 					ParentStation: "ps",
 					LocationType:  model.LocationTypeGenericNode,
 				},
-				&model.Stop{
+				model.Stop{
 					ID:           "ps",
 					Code:         "code_ps",
 					Name:         "Station",
@@ -83,7 +83,7 @@ location_type,stop_id,stop_code,stop_name,stop_desc,stop_lat,stop_lon,stop_url,p
 					URL:          "url_ps",
 					LocationType: model.LocationTypeStation,
 				},
-				&model.Stop{
+				model.Stop{
 					ID:            "s",
 					Code:          "code_s",
 					Name:          "Stop",

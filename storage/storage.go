@@ -75,28 +75,28 @@ type FeedMetadata struct {
 // EndStopTimes() are called before and after all calls to
 // WriteStopTime(), allowing transactions/batching/whathaveyou.
 type FeedWriter interface {
-	WriteAgency(agency *model.Agency) error
-	WriteStop(stop *model.Stop) error
-	WriteRoute(route *model.Route) error
-	WriteTrip(trip *model.Trip) error
+	WriteAgency(agency model.Agency) error
+	WriteStop(stop model.Stop) error
+	WriteRoute(route model.Route) error
+	WriteTrip(trip model.Trip) error
 	BeginTrips() error
 	EndTrips() error
-	WriteCalendar(cal *model.Calendar) error
-	WriteCalendarDate(caldate *model.CalendarDate) error
-	WriteStopTime(stopTime *model.StopTime) error
+	WriteCalendar(cal model.Calendar) error
+	WriteCalendarDate(caldate model.CalendarDate) error
+	WriteStopTime(stopTime model.StopTime) error
 	BeginStopTimes() error
 	EndStopTimes() error
 	Close() error
 }
 
 type FeedReader interface {
-	Agencies() ([]*model.Agency, error)
-	Stops() ([]*model.Stop, error)
-	Routes() ([]*model.Route, error)
-	Trips() ([]*model.Trip, error)
-	StopTimes() ([]*model.StopTime, error)
-	Calendars() ([]*model.Calendar, error)
-	CalendarDates() ([]*model.CalendarDate, error)
+	Agencies() ([]model.Agency, error)
+	Stops() ([]model.Stop, error)
+	Routes() ([]model.Route, error)
+	Trips() ([]model.Trip, error)
+	StopTimes() ([]model.StopTime, error)
+	Calendars() ([]model.Calendar, error)
+	CalendarDates() ([]model.CalendarDate, error)
 
 	// Services IDs for all services active on the given
 	// date. Date is given as YYYYMMDD.
@@ -113,7 +113,7 @@ type FeedReader interface {
 
 	// List of all distinct routes with direction data passing
 	// through a stop, with all distinct headsigns.
-	RouteDirections(stopID string) ([]*model.RouteDirection, error)
+	RouteDirections(stopID string) ([]model.RouteDirection, error)
 
 	// List of stops near given lat/lng, ordered by distance. At
 	// most limit results (pass 0 for no limit.) Optionally
@@ -161,9 +161,9 @@ type StopTimeEventFilter struct {
 // about the associated trip, route and stop, as well as parent
 // station of the stop (if any.)
 type StopTimeEvent struct {
-	StopTime      *model.StopTime
-	Trip          *model.Trip
-	Route         *model.Route
-	Stop          *model.Stop
-	ParentStation *model.Stop
+	StopTime      model.StopTime
+	Trip          model.Trip
+	Route         model.Route
+	Stop          model.Stop
+	ParentStation model.Stop
 }

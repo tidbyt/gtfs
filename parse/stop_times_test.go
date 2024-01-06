@@ -18,7 +18,7 @@ func TestParseStopTimes(t *testing.T) {
 		trips     map[string]bool
 		stops     map[string]bool
 		err       bool
-		stopTimes []*model.StopTime
+		stopTimes []model.StopTime
 	}{
 		{
 			"minimal",
@@ -28,8 +28,8 @@ t,10:00:00,10:00:01,s,1`,
 			map[string]bool{"t": true},
 			map[string]bool{"s": true},
 			false,
-			[]*model.StopTime{
-				&model.StopTime{
+			[]model.StopTime{
+				model.StopTime{
 					TripID:       "t",
 					Arrival:      "100000",
 					Departure:    "100001",
@@ -49,8 +49,8 @@ t,10:00:02,10:00:03,s2,2,sh2
 			map[string]bool{"t": true},
 			map[string]bool{"s1": true, "s2": true},
 			false,
-			[]*model.StopTime{
-				&model.StopTime{
+			[]model.StopTime{
+				model.StopTime{
 					TripID:       "t",
 					Arrival:      "100000",
 					Departure:    "100001",
@@ -58,7 +58,7 @@ t,10:00:02,10:00:03,s2,2,sh2
 					StopSequence: 1,
 					Headsign:     "sh1",
 				},
-				&model.StopTime{
+				model.StopTime{
 					TripID:       "t",
 					Arrival:      "100002",
 					Departure:    "100003",
@@ -77,8 +77,8 @@ t,25:00:00,25:00:01,s,1`,
 			map[string]bool{"t": true},
 			map[string]bool{"s": true},
 			false,
-			[]*model.StopTime{
-				&model.StopTime{
+			[]model.StopTime{
+				model.StopTime{
 					TripID:       "t",
 					Arrival:      "250000",
 					Departure:    "250001",
