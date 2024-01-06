@@ -59,7 +59,7 @@ func ParseTrips(
 			return nil, fmt.Errorf("invalid direction_id '%d'", t.DirectionID)
 		}
 
-		err := writer.WriteTrip(&model.Trip{
+		err := writer.WriteTrip(model.Trip{
 			ID:          t.ID,
 			RouteID:     t.RouteID,
 			ServiceID:   t.ServiceID,

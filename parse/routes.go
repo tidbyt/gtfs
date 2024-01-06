@@ -109,7 +109,7 @@ func ParseRoutes(writer storage.FeedWriter, data io.Reader, agency map[string]bo
 			return nil, fmt.Errorf("route_id '%s' has invalid route_text_color: %s", r.ID, r.TextColor)
 		}
 
-		err = writer.WriteRoute(&model.Route{
+		err = writer.WriteRoute(model.Route{
 			ID:        r.ID,
 			AgencyID:  r.AgencyID,
 			ShortName: r.ShortName,

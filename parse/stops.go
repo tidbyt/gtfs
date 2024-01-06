@@ -81,7 +81,7 @@ func ParseStops(writer storage.FeedWriter, data io.Reader) (map[string]bool, err
 			parentRef[st.ID] = st.ParentStation
 		}
 
-		err := writer.WriteStop(&stop)
+		err := writer.WriteStop(stop)
 		if err != nil {
 			return nil, fmt.Errorf("writing stop '%s': %w", st.ID, err)
 		}

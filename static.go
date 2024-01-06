@@ -74,7 +74,7 @@ func (s Static) NearbyStops(lat float64, lon float64, limit int, types []model.R
 //
 // NOTE: Headsign can also be set on stop_time, which messes this up
 // quite a bit.
-func (s Static) RouteDirections(stopID string) ([]*model.RouteDirection, error) {
+func (s Static) RouteDirections(stopID string) ([]model.RouteDirection, error) {
 	rds, err := s.Reader.RouteDirections(stopID)
 	if err != nil {
 		return nil, err

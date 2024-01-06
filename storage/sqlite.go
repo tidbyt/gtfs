@@ -445,7 +445,7 @@ CREATE TABLE calendar_dates (
 	}, nil
 }
 
-func (f *SQLiteFeedWriter) WriteAgency(a *model.Agency) error {
+func (f *SQLiteFeedWriter) WriteAgency(a model.Agency) error {
 	_, err := f.db.Exec(`
 INSERT INTO agency (id, name, url, timezone)
 VALUES (?, ?, ?, ?)`,
@@ -460,7 +460,7 @@ VALUES (?, ?, ?, ?)`,
 	return nil
 }
 
-func (f *SQLiteFeedWriter) WriteStop(stop *model.Stop) error {
+func (f *SQLiteFeedWriter) WriteStop(stop model.Stop) error {
 	_, err := f.db.Exec(`
 INSERT INTO stops (id, code, name, desc, lat, lon, url, location_type, parent_station, platform_code)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -481,7 +481,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 	return nil
 }
 
-func (f *SQLiteFeedWriter) WriteRoute(route *model.Route) error {
+func (f *SQLiteFeedWriter) WriteRoute(route model.Route) error {
 	_, err := f.db.Exec(`
 INSERT INTO routes (id, agency_id, short_name, long_name, desc, type, url, color, text_color)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -505,7 +505,7 @@ func (f *SQLiteFeedWriter) BeginTrips() error {
 	return nil
 }
 
-func (f *SQLiteFeedWriter) WriteTrip(trip *model.Trip) error {
+func (f *SQLiteFeedWriter) WriteTrip(trip model.Trip) error {
 	_, err := f.db.Exec(`
 INSERT INTO trips (id, route_id, service_id, headsign, short_name, direction_id)
 VALUES (?, ?, ?, ?, ?, ?)`,
@@ -546,7 +546,7 @@ VALUES (?, ?, ?, ?, ?, ? ,?)`)
 	return nil
 }
 
-func (f *SQLiteFeedWriter) WriteStopTime(stopTime *model.StopTime) error {
+func (f *SQLiteFeedWriter) WriteStopTime(stopTime model.StopTime) error {
 	_, err := f.stopTimeInsertQuery.Exec(
 		stopTime.TripID,
 		stopTime.StopID,
@@ -580,7 +580,7 @@ func (f *SQLiteFeedWriter) EndStopTimes() error {
 	return nil
 }
 
-func (f *SQLiteFeedWriter) WriteCalendar(cal *model.Calendar) error {
+func (f *SQLiteFeedWriter) WriteCalendar(cal model.Calendar) error {
 	mon, tue, wed, thu, fri, sat, sun := 0, 0, 0, 0, 0, 0, 0
 	if cal.Weekday&(1<<time.Monday) != 0 {
 		mon = 1
@@ -619,7 +619,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 	return nil
 }
 
-func (f *SQLiteFeedWriter) WriteCalendarDate(cd *model.CalendarDate) error {
+func (f *SQLiteFeedWriter) WriteCalendarDate(cd model.CalendarDate) error {
 	_, err := f.db.Exec(`
 INSERT INTO calendar_dates (service_id, date, exception_type)
 VALUES (?, ?, ?)`,
@@ -710,7 +710,7 @@ WHERE exception_type = 1
 	return activeServices, nil
 }
 
-func (f *SQLiteFeedReader) getStops() ([]*model.Stop, error) {
+func (f *SQLiteFeedReader) getStops() ([]model.Stop, error) {
 	row, err := f.db.Query(`
 SELECT
     stops.id,
@@ -731,9 +731,9 @@ WHERE
 		return nil, fmt.Errorf("querying for nearby stops: %w", err)
 	}
 
-	stops := []*model.Stop{}
+	stops := []model.Stop{}
 	for row.Next() {
-		stop := &model.Stop{}
+		stop := model.Stop{}
 		err = row.Scan(
 			&stop.ID,
 			&stop.Code,
@@ -756,7 +756,7 @@ WHERE
 	return stops, nil
 }
 
-func (f *SQLiteFeedReader) getStopsByRouteType(routeTypes []model.RouteType) ([]*model.Stop, error) {
+func (f *SQLiteFeedReader) getStopsByRouteType(routeTypes []model.RouteType) ([]model.Stop, error) {
 	queryValues := []interface{}{}
 	for _, rt := range routeTypes {
 		queryValues = append(queryValues, rt)
@@ -801,9 +801,9 @@ WHERE
 	}
 	defer rows.Close()
 
-	allStops := map[string]*model.Stop{}
+	allStops := map[string]model.Stop{}
 	for rows.Next() {
-		s := &model.Stop{}
+		s := model.Stop{}
 		parentID := sql.NullString{}
 		parentCode := sql.NullString{}
 		parentName := sql.NullString{}
@@ -839,7 +839,7 @@ WHERE
 		}
 
 		if parentID.Valid {
-			allStops[parentID.String] = &model.Stop{
+			allStops[parentID.String] = model.Stop{
 				ID:           parentID.String,
 				Code:         parentCode.String,
 				Name:         parentName.String,
@@ -855,7 +855,7 @@ WHERE
 		}
 	}
 
-	stops := []*model.Stop{}
+	stops := []model.Stop{}
 	for _, s := range allStops {
 		stops = append(stops, s)
 	}
@@ -864,7 +864,7 @@ WHERE
 }
 
 func (f *SQLiteFeedReader) NearbyStops(lat float64, lng float64, limit int, routeTypes []model.RouteType) ([]model.Stop, error) {
-	var stops []*model.Stop
+	var stops []model.Stop
 	var err error
 
 	if len(routeTypes) == 0 {
@@ -892,15 +892,10 @@ func (f *SQLiteFeedReader) NearbyStops(lat float64, lng float64, limit int, rout
 		stops = stops[:limit]
 	}
 
-	res := []model.Stop{}
-	for _, s := range stops {
-		res = append(res, *s)
-	}
-
-	return res, nil
+	return stops, nil
 }
 
-func (f *SQLiteFeedReader) Agencies() ([]*model.Agency, error) {
+func (f *SQLiteFeedReader) Agencies() ([]model.Agency, error) {
 	rows, err := f.db.Query(`
 SELECT id, name, url, timezone
 FROM agency`)
@@ -909,9 +904,9 @@ FROM agency`)
 	}
 	defer rows.Close()
 
-	agencies := []*model.Agency{}
+	agencies := []model.Agency{}
 	for rows.Next() {
-		a := &model.Agency{}
+		a := model.Agency{}
 		err := rows.Scan(&a.ID, &a.Name, &a.URL, &a.Timezone)
 		if err != nil {
 			return nil, fmt.Errorf("scanning agency: %w", err)
@@ -922,7 +917,7 @@ FROM agency`)
 	return agencies, nil
 }
 
-func (f *SQLiteFeedReader) Stops() ([]*model.Stop, error) {
+func (f *SQLiteFeedReader) Stops() ([]model.Stop, error) {
 	rows, err := f.db.Query(`
 SELECT id, code, name, desc, lat, lon, url, location_type, parent_station, platform_code
 FROM stops`)
@@ -931,9 +926,9 @@ FROM stops`)
 	}
 	defer rows.Close()
 
-	stops := []*model.Stop{}
+	stops := []model.Stop{}
 	for rows.Next() {
-		s := &model.Stop{}
+		s := model.Stop{}
 		err := rows.Scan(
 			&s.ID,
 			&s.Code,
@@ -955,7 +950,7 @@ FROM stops`)
 	return stops, nil
 }
 
-func (f *SQLiteFeedReader) Routes() ([]*model.Route, error) {
+func (f *SQLiteFeedReader) Routes() ([]model.Route, error) {
 	rows, err := f.db.Query(`
 SELECT id, agency_id, short_name, long_name, desc, type, url, color, text_color
 FROM routes`)
@@ -964,9 +959,9 @@ FROM routes`)
 	}
 	defer rows.Close()
 
-	routes := []*model.Route{}
+	routes := []model.Route{}
 	for rows.Next() {
-		r := &model.Route{}
+		r := model.Route{}
 		err := rows.Scan(
 			&r.ID,
 			&r.AgencyID,
@@ -987,7 +982,7 @@ FROM routes`)
 	return routes, nil
 }
 
-func (f *SQLiteFeedReader) Trips() ([]*model.Trip, error) {
+func (f *SQLiteFeedReader) Trips() ([]model.Trip, error) {
 	rows, err := f.db.Query(`
 SELECT id, route_id, service_id, headsign, short_name, direction_id
 FROM trips`)
@@ -996,9 +991,9 @@ FROM trips`)
 	}
 	defer rows.Close()
 
-	trips := []*model.Trip{}
+	trips := []model.Trip{}
 	for rows.Next() {
-		t := &model.Trip{}
+		t := model.Trip{}
 		err := rows.Scan(
 			&t.ID,
 			&t.RouteID,
@@ -1016,7 +1011,7 @@ FROM trips`)
 	return trips, nil
 }
 
-func (f *SQLiteFeedReader) StopTimes() ([]*model.StopTime, error) {
+func (f *SQLiteFeedReader) StopTimes() ([]model.StopTime, error) {
 	rows, err := f.db.Query(`
 SELECT trip_id, stop_id, headsign, stop_sequence, arrival_time, departure_time
 FROM stop_times`)
@@ -1025,9 +1020,9 @@ FROM stop_times`)
 	}
 	defer rows.Close()
 
-	stopTimes := []*model.StopTime{}
+	stopTimes := []model.StopTime{}
 	for rows.Next() {
-		st := &model.StopTime{}
+		st := model.StopTime{}
 		err := rows.Scan(
 			&st.TripID,
 			&st.StopID,
@@ -1045,7 +1040,7 @@ FROM stop_times`)
 	return stopTimes, nil
 }
 
-func (f *SQLiteFeedReader) Calendars() ([]*model.Calendar, error) {
+func (f *SQLiteFeedReader) Calendars() ([]model.Calendar, error) {
 	rows, err := f.db.Query(`
 SELECT service_id, start_date, end_date, monday, tuesday, wednesday, thursday, friday, saturday, sunday
 FROM calendar`)
@@ -1054,7 +1049,7 @@ FROM calendar`)
 	}
 	defer rows.Close()
 
-	calendars := []*model.Calendar{}
+	calendars := []model.Calendar{}
 	for rows.Next() {
 		var serviceID, startDate, endDate string
 		var monday, tuesday, wednesday, thursday, friday, saturday, sunday bool
@@ -1095,7 +1090,7 @@ FROM calendar`)
 		if sunday {
 			weekday |= 1 << time.Sunday
 		}
-		calendars = append(calendars, &model.Calendar{
+		calendars = append(calendars, model.Calendar{
 			ServiceID: serviceID,
 			StartDate: startDate,
 			EndDate:   endDate,
@@ -1106,7 +1101,7 @@ FROM calendar`)
 	return calendars, nil
 }
 
-func (f *SQLiteFeedReader) CalendarDates() ([]*model.CalendarDate, error) {
+func (f *SQLiteFeedReader) CalendarDates() ([]model.CalendarDate, error) {
 	rows, err := f.db.Query(`
 SELECT service_id, date, exception_type
 FROM calendar_dates`)
@@ -1115,9 +1110,9 @@ FROM calendar_dates`)
 	}
 	defer rows.Close()
 
-	calendarDates := []*model.CalendarDate{}
+	calendarDates := []model.CalendarDate{}
 	for rows.Next() {
-		cd := &model.CalendarDate{}
+		cd := model.CalendarDate{}
 		err := rows.Scan(
 			&cd.ServiceID,
 			&cd.Date,
@@ -1285,10 +1280,10 @@ INNER JOIN routes ON trips.route_id = routes.id
 
 	events := []*StopTimeEvent{}
 	for rows.Next() {
-		stop := &model.Stop{}
-		stopTime := &model.StopTime{}
-		trip := &model.Trip{}
-		route := &model.Route{}
+		stop := model.Stop{}
+		stopTime := model.StopTime{}
+		trip := model.Trip{}
+		route := model.Route{}
 
 		err = rows.Scan(
 			&stop.ID,
@@ -1340,14 +1335,14 @@ INNER JOIN routes ON trips.route_id = routes.id
 	// NOTE: this used to be done in the main query as a left
 	// outer join, but performance was awful. May not even need to
 	// retrieve this data at all.
-	parents := map[string]*model.Stop{}
+	parents := map[string]model.Stop{}
 	for _, event := range events {
 		if event.Stop.ParentStation == "" {
 			continue
 		}
 
 		if _, ok := parents[event.Stop.ParentStation]; !ok {
-			parents[event.Stop.ParentStation] = &model.Stop{}
+			parents[event.Stop.ParentStation] = model.Stop{}
 		}
 	}
 
@@ -1373,7 +1368,7 @@ WHERE id IN (`+strings.Join(placeholders, ", ")+`)
 	defer rows.Close()
 
 	for rows.Next() {
-		stop := &model.Stop{}
+		stop := model.Stop{}
 		err = rows.Scan(
 			&stop.ID,
 			&stop.Code,
@@ -1399,7 +1394,7 @@ WHERE id IN (`+strings.Join(placeholders, ", ")+`)
 	return events, nil
 }
 
-func (f *SQLiteFeedReader) RouteDirections(stopID string) ([]*model.RouteDirection, error) {
+func (f *SQLiteFeedReader) RouteDirections(stopID string) ([]model.RouteDirection, error) {
 
 	rows, err := f.db.Query(`
 SELECT trips.route_id, trips.direction_id, trips.headsign, stop_times.headsign
@@ -1443,13 +1438,13 @@ WHERE stop_times.stop_id = ? AND
 		deduped[key][headsign] = true
 	}
 
-	routeDirections := []*model.RouteDirection{}
+	routeDirections := []model.RouteDirection{}
 	for key, headsignSet := range deduped {
 		headsigns := []string{}
 		for headsign := range headsignSet {
 			headsigns = append(headsigns, headsign)
 		}
-		routeDirections = append(routeDirections, &model.RouteDirection{
+		routeDirections = append(routeDirections, model.RouteDirection{
 			StopID:      stopID,
 			RouteID:     key.RouteID,
 			DirectionID: key.DirectionID,

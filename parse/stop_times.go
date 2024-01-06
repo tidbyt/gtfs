@@ -108,8 +108,7 @@ func ParseStopTimes(
 			Departure:    departureTime,
 		}
 
-		stopTimes = append(stopTimes, stopTime)
-		err = writer.WriteStopTime(&stopTime)
+		err = writer.WriteStopTime(stopTime)
 		if err != nil {
 			return errors.Wrapf(err, "writing stop_time (row %d)", i+1)
 		}

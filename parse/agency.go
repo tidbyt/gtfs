@@ -66,7 +66,7 @@ func ParseAgency(writer storage.FeedWriter, data io.Reader) (map[string]bool, st
 			return nil, "", fmt.Errorf("missing agency_url")
 		}
 
-		writer.WriteAgency(&model.Agency{
+		writer.WriteAgency(model.Agency{
 			ID:       a.ID,
 			Name:     a.Name,
 			URL:      a.URL,

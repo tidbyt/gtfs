@@ -18,7 +18,7 @@ func TestParseAgency(t *testing.T) {
 		content   string
 		agencyIDs map[string]bool
 		timezone  string
-		agencies  []*model.Agency
+		agencies  []model.Agency
 		err       bool
 	}{
 		{
@@ -28,7 +28,7 @@ agency_name,agency_url,agency_timezone
 Agency Name,http://www.example.com,America/New_York`,
 			map[string]bool{"": true},
 			"America/New_York",
-			[]*model.Agency{&model.Agency{
+			[]model.Agency{model.Agency{
 				Name:     "Agency Name",
 				URL:      "http://www.example.com",
 				Timezone: "America/New_York",
@@ -45,20 +45,20 @@ agency_id,agency_name,agency_url,agency_timezone
 3,Agency Three,http://www.example.com/three,America/New_York`,
 			map[string]bool{"1": true, "2": true, "3": true},
 			"America/New_York",
-			[]*model.Agency{
-				&model.Agency{
+			[]model.Agency{
+				model.Agency{
 					ID:       "1",
 					Name:     "Agency One",
 					URL:      "http://www.example.com/one",
 					Timezone: "America/New_York",
 				},
-				&model.Agency{
+				model.Agency{
 					ID:       "2",
 					Name:     "Agency Two",
 					URL:      "http://www.example.com/two",
 					Timezone: "America/New_York",
 				},
-				&model.Agency{
+				model.Agency{
 					ID:       "3",
 					Name:     "Agency Three",
 					URL:      "http://www.example.com/three",
