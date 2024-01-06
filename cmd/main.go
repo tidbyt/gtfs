@@ -120,13 +120,10 @@ func LoadRealtimeFeed() (*gtfs.Realtime, error) {
 	if realtimeURL == "" {
 		return nil, fmt.Errorf("realtime URL is required")
 	}
-	if staticURL == "" {
-		return nil, fmt.Errorf("static URL is required")
-	}
 
-	sh, err := parseHeaders(staticHeaders)
+	static, err := LoadStaticFeed()
 	if err != nil {
-		return nil, fmt.Errorf("invalid static header: %w", err)
+		return nil, fmt.Errorf("loading static feed: %w", err)
 	}
 
 	rh, err := parseHeaders(realtimeHeaders)
@@ -140,7 +137,6 @@ func LoadRealtimeFeed() (*gtfs.Realtime, error) {
 	}
 
 	for k, v := range shared {
-		sh[k] = v
 		rh[k] = v
 	}
 
@@ -156,7 +152,7 @@ func LoadRealtimeFeed() (*gtfs.Realtime, error) {
 	manager := gtfs.NewManager(s)
 	manager.Downloader = fs
 
-	realtime, err := manager.LoadRealtime("cli", staticURL, sh, realtimeURL, rh, time.Now())
+	realtime, err := manager.LoadRealtime("cli", static, realtimeURL, rh, time.Now())
 	if err != nil {
 		return nil, err
 	}
