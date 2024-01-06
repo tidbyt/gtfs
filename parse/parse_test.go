@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"tidbyt.dev/gtfs/model"
 	"tidbyt.dev/gtfs/storage"
 )
 
@@ -80,7 +81,7 @@ func TestParseValidFeed(t *testing.T) {
 
 	agencies, err := reader.Agencies()
 	assert.NoError(t, err)
-	assert.Equal(t, []*storage.Agency{&storage.Agency{
+	assert.Equal(t, []*model.Agency{&model.Agency{
 		Timezone: "America/Los_Angeles",
 		Name:     "Fake Agency",
 		URL:      "http://agency/index.html",
@@ -88,7 +89,7 @@ func TestParseValidFeed(t *testing.T) {
 
 	routes, err := reader.Routes()
 	assert.NoError(t, err)
-	assert.Equal(t, []*storage.Route{&storage.Route{
+	assert.Equal(t, []*model.Route{&model.Route{
 		ID:        "r",
 		ShortName: "R",
 		Type:      3,
@@ -98,7 +99,7 @@ func TestParseValidFeed(t *testing.T) {
 
 	calendar, err := reader.Calendars()
 	assert.NoError(t, err)
-	assert.Equal(t, []*storage.Calendar{&storage.Calendar{
+	assert.Equal(t, []*model.Calendar{&model.Calendar{
 		ServiceID: "mondays",
 		Weekday:   1 << time.Monday,
 		StartDate: "20190101",
@@ -107,7 +108,7 @@ func TestParseValidFeed(t *testing.T) {
 
 	calendarDates, err := reader.CalendarDates()
 	assert.NoError(t, err)
-	assert.Equal(t, []*storage.CalendarDate{&storage.CalendarDate{
+	assert.Equal(t, []*model.CalendarDate{&model.CalendarDate{
 		ServiceID:     "mondays",
 		Date:          "20190302",
 		ExceptionType: 1,
@@ -115,7 +116,7 @@ func TestParseValidFeed(t *testing.T) {
 
 	trips, err := reader.Trips()
 	assert.NoError(t, err)
-	assert.Equal(t, []*storage.Trip{&storage.Trip{
+	assert.Equal(t, []*model.Trip{&model.Trip{
 		ID:        "t",
 		RouteID:   "r",
 		ServiceID: "mondays",
@@ -123,7 +124,7 @@ func TestParseValidFeed(t *testing.T) {
 
 	stops, err := reader.Stops()
 	assert.NoError(t, err)
-	assert.Equal(t, []*storage.Stop{&storage.Stop{
+	assert.Equal(t, []*model.Stop{&model.Stop{
 		ID:   "s",
 		Name: "S",
 		Lat:  12,
@@ -132,7 +133,7 @@ func TestParseValidFeed(t *testing.T) {
 
 	stopTimes, err := reader.StopTimes()
 	assert.NoError(t, err)
-	assert.Equal(t, []*storage.StopTime{&storage.StopTime{
+	assert.Equal(t, []*model.StopTime{&model.StopTime{
 		TripID:       "t",
 		Arrival:      "120000",
 		Departure:    "120000",
@@ -262,7 +263,7 @@ func TestParseUnorthodoxArchiveStructure(t *testing.T) {
 
 	agency, err := reader.Agencies()
 	assert.NoError(t, err)
-	assert.Equal(t, []*storage.Agency{&storage.Agency{
+	assert.Equal(t, []*model.Agency{&model.Agency{
 		Timezone: "America/Los_Angeles",
 		Name:     "Fake Agency",
 		URL:      "http://agency/index.html",

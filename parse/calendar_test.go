@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"tidbyt.dev/gtfs/model"
 	"tidbyt.dev/gtfs/storage"
 )
 
@@ -16,7 +17,7 @@ func TestCalendar(t *testing.T) {
 	for _, tc := range []struct {
 		name     string
 		content  string
-		expected []*storage.Calendar
+		expected []*model.Calendar
 		minDate  string
 		maxDate  string
 		err      bool
@@ -27,7 +28,7 @@ func TestCalendar(t *testing.T) {
 service_id,start_date,end_date
 s,20170101,20170131`,
 
-			[]*storage.Calendar{
+			[]*model.Calendar{
 				{
 					ServiceID: "s",
 					Weekday:   0,
@@ -45,7 +46,7 @@ s,20170101,20170131`,
 			`
 service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date
 s,1,1,1,1,1,1,1,20170101,20170131`,
-			[]*storage.Calendar{
+			[]*model.Calendar{
 				{
 					ServiceID: "s",
 					Weekday:   127,
@@ -65,7 +66,7 @@ service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,e
 s1,1,1,1,1,1,1,1,20170101,20170131
 s2,1,1,1,1,1,0,0,20171001,20180201
 s3,1,1,0,1,1,0,1,20161225,20170202`,
-			[]*storage.Calendar{
+			[]*model.Calendar{
 				{
 					ServiceID: "s1",
 					Weekday:   127,

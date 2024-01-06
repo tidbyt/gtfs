@@ -6,6 +6,7 @@ import (
 	"sort"
 	"time"
 
+	"tidbyt.dev/gtfs/model"
 	"tidbyt.dev/gtfs/parse"
 	"tidbyt.dev/gtfs/storage"
 )
@@ -105,7 +106,7 @@ func (rt *Realtime) Departures(
 	numDepartures int,
 	routeID string,
 	directionID int8,
-	routeTypes []storage.RouteType) ([]Departure, error) {
+	routeTypes []model.RouteType) ([]model.Departure, error) {
 
 	// Get the scheduled departures. Extend the window so that
 	// delayed (or early) departures are included.
@@ -123,7 +124,7 @@ func (rt *Realtime) Departures(
 	}
 
 	// Process each scheduled departure, applying realtime updates
-	departures := []Departure{}
+	departures := []model.Departure{}
 	for _, dep := range scheduled {
 
 		// If trip is cancelled, the the departure is too
@@ -197,7 +198,7 @@ func (rt *Realtime) Departures(
 
 	// Filter out departures outside of the requested time
 	// window. Sort by time. Done.
-	result := []Departure{}
+	result := []model.Departure{}
 	for _, dep := range departures {
 		if dep.Time.Before(windowStart) || dep.Time.After(windowStart.Add(windowLength)) {
 			continue

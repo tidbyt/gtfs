@@ -7,8 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"tidbyt.dev/gtfs"
-	"tidbyt.dev/gtfs/storage"
+	"tidbyt.dev/gtfs/model"
 	"tidbyt.dev/gtfs/testutil"
 )
 
@@ -26,11 +25,11 @@ func testGTFSStaticIntegrationNearbyStops(t *testing.T, backend string) {
 	// station.
 	stops, err := g.NearbyStops(40.6968986, -73.955555, 4, nil)
 	assert.NoError(t, err)
-	stopMap := make(map[string]storage.Stop)
+	stopMap := make(map[string]model.Stop)
 	for _, s := range stops {
 		stopMap[s.ID] = s
 	}
-	assert.Equal(t, map[string]storage.Stop{
+	assert.Equal(t, map[string]model.Stop{
 		"G31": {
 			ID:            "G31",
 			Lat:           40.700377,
@@ -116,7 +115,7 @@ func testGTFSStaticIntegrationDepartures(t *testing.T, backend string) {
 
 	// Feb 3rd is a Monday
 	departures, _ := g.Departures("G33S", time.Date(2020, 2, 3, 22, 50, 0, 0, tz), 10*time.Minute, -1, "", -1, nil)
-	assert.Equal(t, []gtfs.Departure{
+	assert.Equal(t, []model.Departure{
 		{
 			StopID:       "G33S",
 			RouteID:      "G",
@@ -139,7 +138,7 @@ func testGTFSStaticIntegrationDepartures(t *testing.T, backend string) {
 
 	// Feb 17 is also a Monday, but President's Day
 	departures, _ = g.Departures("G33S", time.Date(2020, 2, 17, 22, 50, 0, 0, tz), 10*time.Minute, -1, "", -1, nil)
-	assert.Equal(t, []gtfs.Departure{
+	assert.Equal(t, []model.Departure{
 		{
 			StopID:       "G33S",
 			RouteID:      "G",
@@ -155,7 +154,7 @@ func testGTFSStaticIntegrationDepartures(t *testing.T, backend string) {
 	// reverse order in stop_times.txt, but will be still be
 	// returned ordered by departure time.
 	departures, _ = g.Departures("G33S", time.Date(2020, 2, 17, 22, 50, 0, 0, tz), 13*time.Minute, -1, "", -1, nil)
-	assert.Equal(t, []gtfs.Departure{
+	assert.Equal(t, []model.Departure{
 		{
 			StopID:       "G33S",
 			RouteID:      "G",
@@ -178,7 +177,7 @@ func testGTFSStaticIntegrationDepartures(t *testing.T, backend string) {
 
 	// Feb 16 is a Sunday
 	departures, _ = g.Departures("G33S", time.Date(2020, 2, 16, 22, 50, 0, 0, tz), 10*time.Minute, -1, "", -1, nil)
-	assert.Equal(t, []gtfs.Departure{
+	assert.Equal(t, []model.Departure{
 		{
 			StopID:       "G33S",
 			RouteID:      "G",

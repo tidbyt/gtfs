@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"tidbyt.dev/gtfs/model"
 	"tidbyt.dev/gtfs/storage"
 )
 
@@ -17,7 +18,7 @@ func TestParseTrips(t *testing.T) {
 		content  string
 		routes   map[string]bool
 		services map[string]bool
-		trips    []*storage.Trip
+		trips    []*model.Trip
 		err      bool
 	}{
 		{
@@ -27,7 +28,7 @@ trip_id,route_id,service_id
 t,r,s`,
 			map[string]bool{"r": true},
 			map[string]bool{"s": true},
-			[]*storage.Trip{&storage.Trip{
+			[]*model.Trip{&model.Trip{
 				ID:        "t",
 				RouteID:   "r",
 				ServiceID: "s",
@@ -42,7 +43,7 @@ trip_id,route_id,service_id,trip_headsign,trip_short_name,direction_id
 t,r,s,head,short,1`,
 			map[string]bool{"r": true},
 			map[string]bool{"s": true},
-			[]*storage.Trip{&storage.Trip{
+			[]*model.Trip{&model.Trip{
 				ID:          "t",
 				RouteID:     "r",
 				ServiceID:   "s",
@@ -61,14 +62,14 @@ t1,r1,s2,0
 t2,r2,s1,1`,
 			map[string]bool{"r1": true, "r2": true},
 			map[string]bool{"s1": true, "s2": true},
-			[]*storage.Trip{
-				&storage.Trip{
+			[]*model.Trip{
+				&model.Trip{
 					ID:          "t1",
 					RouteID:     "r1",
 					ServiceID:   "s2",
 					DirectionID: 0,
 				},
-				&storage.Trip{
+				&model.Trip{
 					ID:          "t2",
 					RouteID:     "r2",
 					ServiceID:   "s1",

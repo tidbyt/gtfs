@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"tidbyt.dev/gtfs/model"
 	"tidbyt.dev/gtfs/storage"
 )
 
@@ -15,7 +16,7 @@ func TestCalendarDates(t *testing.T) {
 	for _, tc := range []struct {
 		name     string
 		content  string
-		expected []*storage.CalendarDate
+		expected []*model.CalendarDate
 		minDate  string
 		maxDate  string
 		err      bool
@@ -25,11 +26,11 @@ func TestCalendarDates(t *testing.T) {
 			`
 service_id,date,exception_type
 s1,20170101,1`,
-			[]*storage.CalendarDate{
-				&storage.CalendarDate{
+			[]*model.CalendarDate{
+				&model.CalendarDate{
 					ServiceID:     "s1",
 					Date:          "20170101",
-					ExceptionType: 1,
+					ExceptionType: model.ExceptionTypeAdded,
 				},
 			},
 			"20170101",
@@ -44,21 +45,21 @@ service_id,date,exception_type
 s1,20170101,1
 s1,20170102,2
 s2,20170103,1`,
-			[]*storage.CalendarDate{
-				&storage.CalendarDate{
+			[]*model.CalendarDate{
+				&model.CalendarDate{
 					ServiceID:     "s1",
 					Date:          "20170101",
-					ExceptionType: 1,
+					ExceptionType: model.ExceptionTypeAdded,
 				},
-				&storage.CalendarDate{
+				&model.CalendarDate{
 					ServiceID:     "s1",
 					Date:          "20170102",
-					ExceptionType: 2,
+					ExceptionType: model.ExceptionTypeRemoved,
 				},
-				&storage.CalendarDate{
+				&model.CalendarDate{
 					ServiceID:     "s2",
 					Date:          "20170103",
-					ExceptionType: 1,
+					ExceptionType: model.ExceptionTypeAdded,
 				},
 			},
 			"20170101",

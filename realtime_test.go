@@ -12,7 +12,7 @@ import (
 	proto "google.golang.org/protobuf/proto"
 
 	"tidbyt.dev/gtfs"
-	"tidbyt.dev/gtfs/storage"
+	"tidbyt.dev/gtfs/model"
 	"tidbyt.dev/gtfs/testutil"
 )
 
@@ -199,7 +199,7 @@ func TestRealtimeNoChanges(t *testing.T) {
 	// Check s1
 	departures, err := rt.Departures("s1", time.Date(2020, 1, 15, 23, 0, 0, 0, time.UTC), 10*time.Minute, -1, "", -1, nil)
 	assert.Equal(t, nil, err)
-	assert.Equal(t, []gtfs.Departure{
+	assert.Equal(t, []model.Departure{
 		{
 			RouteID:      "R1",
 			TripID:       "t1",
@@ -219,7 +219,7 @@ func TestRealtimeNoChanges(t *testing.T) {
 	// Check s2
 	departures, err = rt.Departures("s2", time.Date(2020, 1, 15, 23, 0, 0, 0, time.UTC), 20*time.Minute, -1, "", -1, nil)
 	assert.Equal(t, nil, err)
-	assert.Equal(t, []gtfs.Departure{
+	assert.Equal(t, []model.Departure{
 		{
 			RouteID:      "R1",
 			TripID:       "t1",
@@ -239,7 +239,7 @@ func TestRealtimeNoChanges(t *testing.T) {
 	// Check s3
 	departures, err = rt.Departures("s3", time.Date(2020, 1, 15, 23, 0, 0, 0, time.UTC), 20*time.Minute, -1, "", -1, nil)
 	assert.Equal(t, nil, err)
-	assert.Equal(t, []gtfs.Departure{
+	assert.Equal(t, []model.Departure{
 		{
 			RouteID:      "R1",
 			TripID:       "t1",
@@ -259,13 +259,13 @@ func TestRealtimeNoChanges(t *testing.T) {
 	// No departures from s4 since it's the final stop
 	departures, err = rt.Departures("s4", time.Date(2020, 1, 15, 23, 0, 0, 0, time.UTC), 30*time.Minute, -1, "", -1, nil)
 	assert.Equal(t, nil, err)
-	assert.Equal(t, []gtfs.Departure{}, departures)
+	assert.Equal(t, []model.Departure{}, departures)
 
 	// And z1 for good measure. This one definitely shouldn't have
 	// changed.
 	departures, err = rt.Departures("z1", time.Date(2020, 1, 15, 23, 0, 0, 0, time.UTC), 20*time.Minute, -1, "", -1, nil)
 	assert.Equal(t, nil, err)
-	assert.Equal(t, []gtfs.Departure{
+	assert.Equal(t, []model.Departure{
 		{
 			RouteID:      "R2",
 			TripID:       "t3",
@@ -278,7 +278,7 @@ func TestRealtimeNoChanges(t *testing.T) {
 	// And no departures from z3 since it's the final stop
 	departures, err = rt.Departures("z3", time.Date(2020, 1, 15, 23, 0, 0, 0, time.UTC), 30*time.Minute, -1, "", -1, nil)
 	assert.Equal(t, nil, err)
-	assert.Equal(t, []gtfs.Departure{}, departures)
+	assert.Equal(t, []model.Departure{}, departures)
 }
 
 // Realtime data where updates are expected to propagate along a trip
@@ -320,7 +320,7 @@ func TestRealtimeDelayWithPropagation(t *testing.T) {
 	// Check s1
 	departures, err := rt.Departures("s1", time.Date(2020, 1, 15, 23, 0, 0, 0, time.UTC), 10*time.Minute, -1, "", -1, nil)
 	assert.Equal(t, nil, err)
-	assert.Equal(t, []gtfs.Departure{
+	assert.Equal(t, []model.Departure{
 		{
 			RouteID:      "R1",
 			TripID:       "t1",
@@ -340,7 +340,7 @@ func TestRealtimeDelayWithPropagation(t *testing.T) {
 	// Check s2. Expecting delays on both trips.
 	departures, err = rt.Departures("s2", time.Date(2020, 1, 15, 23, 0, 0, 0, time.UTC), 20*time.Minute, -1, "", -1, nil)
 	assert.Equal(t, nil, err)
-	assert.Equal(t, []gtfs.Departure{
+	assert.Equal(t, []model.Departure{
 		{
 			RouteID:      "R1",
 			TripID:       "t1",
@@ -362,7 +362,7 @@ func TestRealtimeDelayWithPropagation(t *testing.T) {
 	// Check s3. Expecting delay on t1, but t2 back on schedule.
 	departures, err = rt.Departures("s3", time.Date(2020, 1, 15, 23, 0, 0, 0, time.UTC), 20*time.Minute, -1, "", -1, nil)
 	assert.Equal(t, nil, err)
-	assert.Equal(t, []gtfs.Departure{
+	assert.Equal(t, []model.Departure{
 		{
 			RouteID:      "R1",
 			TripID:       "t1",
@@ -442,7 +442,7 @@ func TestRealtimeNoData(t *testing.T) {
 	// Check s1
 	departures, err := rt.Departures("s1", time.Date(2020, 1, 15, 23, 0, 0, 0, time.UTC), 20*time.Minute, -1, "", -1, nil)
 	assert.Equal(t, nil, err)
-	assert.Equal(t, []gtfs.Departure{
+	assert.Equal(t, []model.Departure{
 		{
 			RouteID:      "R1",
 			TripID:       "t1",
@@ -463,7 +463,7 @@ func TestRealtimeNoData(t *testing.T) {
 	// Check s2
 	departures, err = rt.Departures("s2", time.Date(2020, 1, 15, 23, 0, 0, 0, time.UTC), 20*time.Minute, -1, "", -1, nil)
 	assert.Equal(t, nil, err)
-	assert.Equal(t, []gtfs.Departure{
+	assert.Equal(t, []model.Departure{
 		{
 			RouteID:      "R1",
 			TripID:       "t1",
@@ -485,7 +485,7 @@ func TestRealtimeNoData(t *testing.T) {
 	// Check s3
 	departures, err = rt.Departures("s3", time.Date(2020, 1, 15, 23, 0, 0, 0, time.UTC), 20*time.Minute, -1, "", -1, nil)
 	assert.Equal(t, nil, err)
-	assert.Equal(t, []gtfs.Departure{
+	assert.Equal(t, []model.Departure{
 		{
 			RouteID:      "R1",
 			TripID:       "t1",
@@ -551,7 +551,7 @@ func TestRealtimeSkippedStop(t *testing.T) {
 	// Check s1. Expect t1 to skip past. t2 is delayed 30s.
 	departures, err := rt.Departures("s1", time.Date(2020, 1, 15, 23, 0, 0, 0, time.UTC), 20*time.Minute, -1, "", -1, nil)
 	assert.Equal(t, nil, err)
-	assert.Equal(t, []gtfs.Departure{
+	assert.Equal(t, []model.Departure{
 		{
 			RouteID:      "R1",
 			TripID:       "t2",
@@ -565,7 +565,7 @@ func TestRealtimeSkippedStop(t *testing.T) {
 	// Check s2. Expect t2 to skip. t1 is on time.
 	departures, err = rt.Departures("s2", time.Date(2020, 1, 15, 23, 0, 0, 0, time.UTC), 20*time.Minute, -1, "", -1, nil)
 	assert.Equal(t, nil, err)
-	assert.Equal(t, []gtfs.Departure{
+	assert.Equal(t, []model.Departure{
 		{
 			RouteID:      "R1",
 			TripID:       "t1",
@@ -578,7 +578,7 @@ func TestRealtimeSkippedStop(t *testing.T) {
 	// Check s3. Expect t1 to skip, and t2 to remain 30s delayed.
 	departures, err = rt.Departures("s3", time.Date(2020, 1, 15, 23, 0, 0, 0, time.UTC), 20*time.Minute, -1, "", -1, nil)
 	assert.Equal(t, nil, err)
-	assert.Equal(t, []gtfs.Departure{
+	assert.Equal(t, []model.Departure{
 		{
 			RouteID:      "R1",
 			TripID:       "t2",
@@ -616,7 +616,7 @@ func TestRealtimeCanceledTrip(t *testing.T) {
 
 	departures, err := rt.Departures("s1", time.Date(2020, 1, 15, 23, 0, 0, 0, time.UTC), 10*time.Minute, -1, "", -1, nil)
 	assert.Equal(t, nil, err)
-	assert.Equal(t, []gtfs.Departure{
+	assert.Equal(t, []model.Departure{
 		{
 			RouteID:      "R1",
 			TripID:       "t2",
@@ -628,7 +628,7 @@ func TestRealtimeCanceledTrip(t *testing.T) {
 
 	departures, err = rt.Departures("s2", time.Date(2020, 1, 15, 23, 0, 0, 0, time.UTC), 20*time.Minute, -1, "", -1, nil)
 	assert.Equal(t, nil, err)
-	assert.Equal(t, []gtfs.Departure{
+	assert.Equal(t, []model.Departure{
 		{
 			RouteID:      "R1",
 			TripID:       "t2",
@@ -641,7 +641,7 @@ func TestRealtimeCanceledTrip(t *testing.T) {
 
 	departures, err = rt.Departures("s3", time.Date(2020, 1, 15, 23, 0, 0, 0, time.UTC), 20*time.Minute, -1, "", -1, nil)
 	assert.Equal(t, nil, err)
-	assert.Equal(t, []gtfs.Departure{
+	assert.Equal(t, []model.Departure{
 		{
 			RouteID:      "R1",
 			TripID:       "t2",
@@ -654,7 +654,7 @@ func TestRealtimeCanceledTrip(t *testing.T) {
 
 	departures, err = rt.Departures("z1", time.Date(2020, 1, 15, 23, 0, 0, 0, time.UTC), 20*time.Minute, -1, "", -1, nil)
 	assert.Equal(t, nil, err)
-	assert.Equal(t, []gtfs.Departure{
+	assert.Equal(t, []model.Departure{
 		{
 			RouteID:      "R2",
 			TripID:       "t3",
@@ -684,19 +684,19 @@ func TestRealtimeCanceledTrip(t *testing.T) {
 
 	departures, err = rt.Departures("s1", time.Date(2020, 1, 15, 23, 0, 0, 0, time.UTC), 20*time.Minute, -1, "", -1, nil)
 	assert.Equal(t, nil, err)
-	assert.Equal(t, []gtfs.Departure{}, departures)
+	assert.Equal(t, []model.Departure{}, departures)
 	departures, err = rt.Departures("s2", time.Date(2020, 1, 15, 23, 0, 0, 0, time.UTC), 20*time.Minute, -1, "", -1, nil)
 	assert.Equal(t, nil, err)
-	assert.Equal(t, []gtfs.Departure{}, departures)
+	assert.Equal(t, []model.Departure{}, departures)
 	departures, err = rt.Departures("s31", time.Date(2020, 1, 15, 23, 0, 0, 0, time.UTC), 20*time.Minute, -1, "", -1, nil)
 	assert.Equal(t, nil, err)
-	assert.Equal(t, []gtfs.Departure{}, departures)
+	assert.Equal(t, []model.Departure{}, departures)
 	departures, err = rt.Departures("z1", time.Date(2020, 1, 15, 23, 0, 0, 0, time.UTC), 20*time.Minute, -1, "", -1, nil)
 	assert.Equal(t, nil, err)
-	assert.Equal(t, []gtfs.Departure{}, departures)
+	assert.Equal(t, []model.Departure{}, departures)
 	departures, err = rt.Departures("z2", time.Date(2020, 1, 15, 23, 0, 0, 0, time.UTC), 20*time.Minute, -1, "", -1, nil)
 	assert.Equal(t, nil, err)
-	assert.Equal(t, []gtfs.Departure{}, departures)
+	assert.Equal(t, []model.Departure{}, departures)
 }
 
 // Check that the time parameters are respected
@@ -748,7 +748,7 @@ func TestRealtimeTimeWindowing(t *testing.T) {
 		-1, "", -1, nil,
 	)
 	assert.Equal(t, nil, err)
-	assert.Equal(t, []gtfs.Departure{
+	assert.Equal(t, []model.Departure{
 		{
 			RouteID:      "R1",
 			TripID:       "t1",
@@ -767,7 +767,7 @@ func TestRealtimeTimeWindowing(t *testing.T) {
 		-1, "", -1, nil,
 	)
 	assert.Equal(t, nil, err)
-	assert.Equal(t, []gtfs.Departure{
+	assert.Equal(t, []model.Departure{
 		{
 			RouteID:      "R1",
 			TripID:       "t1",
@@ -794,7 +794,7 @@ func TestRealtimeTimeWindowing(t *testing.T) {
 		-1, "", -1, nil,
 	)
 	assert.Equal(t, nil, err)
-	assert.Equal(t, []gtfs.Departure{
+	assert.Equal(t, []model.Departure{
 		{
 			RouteID:      "R1",
 			TripID:       "t2",
@@ -883,7 +883,7 @@ func TestRealtimeTripWithLoop(t *testing.T) {
 
 	departures, err := rt.Departures("s1", time.Date(2020, 1, 15, 23, 0, 0, 0, time.UTC), 10*time.Minute, -1, "", -1, nil)
 	assert.Equal(t, nil, err)
-	assert.Equal(t, []gtfs.Departure{
+	assert.Equal(t, []model.Departure{
 		{
 			RouteID:      "R1",
 			TripID:       "t1",
@@ -895,7 +895,7 @@ func TestRealtimeTripWithLoop(t *testing.T) {
 
 	departures, err = rt.Departures("s2", time.Date(2020, 1, 15, 23, 0, 0, 0, time.UTC), 10*time.Minute, -1, "", -1, nil)
 	assert.Equal(t, nil, err)
-	assert.Equal(t, []gtfs.Departure{
+	assert.Equal(t, []model.Departure{
 		{
 			RouteID:      "R1",
 			TripID:       "t1",
@@ -907,7 +907,7 @@ func TestRealtimeTripWithLoop(t *testing.T) {
 
 	departures, err = rt.Departures("s3", time.Date(2020, 1, 15, 23, 0, 0, 0, time.UTC), 20*time.Minute, -1, "", -1, nil)
 	assert.Equal(t, nil, err)
-	assert.Equal(t, []gtfs.Departure{
+	assert.Equal(t, []model.Departure{
 		{
 			RouteID:      "R1",
 			TripID:       "t1",
@@ -935,7 +935,7 @@ func TestRealtimeTripWithLoop(t *testing.T) {
 
 	departures, err = rt.Departures("s4", time.Date(2020, 1, 15, 23, 0, 0, 0, time.UTC), 10*time.Minute, -1, "", -1, nil)
 	assert.Equal(t, nil, err)
-	assert.Equal(t, []gtfs.Departure{
+	assert.Equal(t, []model.Departure{
 		{
 			RouteID:      "R1",
 			TripID:       "t1",
@@ -963,7 +963,7 @@ func TestRealtimeTripWithLoop(t *testing.T) {
 
 	departures, err = rt.Departures("s5", time.Date(2020, 1, 15, 23, 0, 0, 0, time.UTC), 10*time.Minute, -1, "", -1, nil)
 	assert.Equal(t, nil, err)
-	assert.Equal(t, []gtfs.Departure{
+	assert.Equal(t, []model.Departure{
 		{
 			RouteID:      "R1",
 			TripID:       "t1",
@@ -1063,7 +1063,7 @@ func TestRealtimeDepartureFiltering(t *testing.T) {
 		10*time.Hour,
 		-1, "", -1, nil)
 	assert.Equal(t, nil, err)
-	assert.Equal(t, []gtfs.Departure{
+	assert.Equal(t, []model.Departure{
 		{
 			RouteID:      "BusSouth",
 			TripID:       "ts",
@@ -1088,7 +1088,7 @@ func TestRealtimeDepartureFiltering(t *testing.T) {
 		10*time.Hour,
 		1, "", -1, nil)
 	assert.Equal(t, nil, err)
-	assert.Equal(t, []gtfs.Departure{
+	assert.Equal(t, []model.Departure{
 		{
 			RouteID:      "BusSouth",
 			TripID:       "ts",
@@ -1106,7 +1106,7 @@ func TestRealtimeDepartureFiltering(t *testing.T) {
 		10*time.Hour,
 		1, "RailEast", -1, nil)
 	assert.Equal(t, nil, err)
-	assert.Equal(t, []gtfs.Departure{
+	assert.Equal(t, []model.Departure{
 		{
 			RouteID:      "RailEast",
 			TripID:       "te",
@@ -1121,7 +1121,7 @@ func TestRealtimeDepartureFiltering(t *testing.T) {
 		10*time.Hour,
 		-1, "BusSouth", -1, nil)
 	assert.Equal(t, nil, err)
-	assert.Equal(t, []gtfs.Departure{
+	assert.Equal(t, []model.Departure{
 		{
 			RouteID:      "BusSouth",
 			TripID:       "ts",
@@ -1139,7 +1139,7 @@ func TestRealtimeDepartureFiltering(t *testing.T) {
 		10*time.Hour,
 		-1, "BusSouth", 0, nil)
 	assert.Equal(t, nil, err)
-	assert.Equal(t, []gtfs.Departure{
+	assert.Equal(t, []model.Departure{
 		{
 			RouteID:      "BusSouth",
 			TripID:       "ts",
@@ -1155,16 +1155,16 @@ func TestRealtimeDepartureFiltering(t *testing.T) {
 		10*time.Hour,
 		-1, "BusSouth", 1, nil)
 	assert.Equal(t, nil, err)
-	assert.Equal(t, []gtfs.Departure{}, departures)
+	assert.Equal(t, []model.Departure{}, departures)
 
-	// And we can filter on storage.RouteType
+	// And we can filter on model.RouteType
 	departures, err = rt.Departures(
 		"center",
 		time.Date(2020, 1, 16, 0, 0, 0, 0, time.UTC),
 		10*time.Hour,
-		-1, "", -1, []storage.RouteType{storage.RouteTypeBus})
+		-1, "", -1, []model.RouteType{model.RouteTypeBus})
 	assert.NoError(t, err)
-	assert.Equal(t, []gtfs.Departure{
+	assert.Equal(t, []model.Departure{
 		{
 			RouteID:      "BusSouth",
 			TripID:       "ts",
@@ -1178,9 +1178,9 @@ func TestRealtimeDepartureFiltering(t *testing.T) {
 		"center",
 		time.Date(2020, 1, 16, 0, 0, 0, 0, time.UTC),
 		10*time.Hour,
-		-1, "", -1, []storage.RouteType{storage.RouteTypeRail})
+		-1, "", -1, []model.RouteType{model.RouteTypeRail})
 	assert.NoError(t, err)
-	assert.Equal(t, []gtfs.Departure{
+	assert.Equal(t, []model.Departure{
 		{
 			RouteID:      "RailEast",
 			TripID:       "te",
@@ -1193,9 +1193,9 @@ func TestRealtimeDepartureFiltering(t *testing.T) {
 		"center",
 		time.Date(2020, 1, 16, 0, 0, 0, 0, time.UTC),
 		10*time.Hour,
-		-1, "", -1, []storage.RouteType{storage.RouteTypeMonorail})
+		-1, "", -1, []model.RouteType{model.RouteTypeMonorail})
 	assert.NoError(t, err)
-	assert.Equal(t, []gtfs.Departure{}, departures)
+	assert.Equal(t, []model.Departure{}, departures)
 
 }
 
@@ -1359,7 +1359,7 @@ func TestRealtimeArrivalRecovery(t *testing.T) {
 	// Check the delays on the first stop
 	departures, err := rt.Departures("s1", time.Date(2020, 1, 15, 23, 0, 0, 0, time.UTC), 30*time.Minute, -1, "", -1, nil)
 	assert.NoError(t, err)
-	assert.Equal(t, []gtfs.Departure{
+	assert.Equal(t, []model.Departure{
 		{
 			RouteID:      "R1",
 			TripID:       "t1",
@@ -1380,7 +1380,7 @@ func TestRealtimeArrivalRecovery(t *testing.T) {
 
 	departures, err = rt.Departures("z1", time.Date(2020, 1, 15, 23, 0, 0, 0, time.UTC), 30*time.Minute, -1, "", -1, nil)
 	assert.NoError(t, err)
-	assert.Equal(t, []gtfs.Departure{
+	assert.Equal(t, []model.Departure{
 		{
 			RouteID:      "R2",
 			TripID:       "t3",
@@ -1394,7 +1394,7 @@ func TestRealtimeArrivalRecovery(t *testing.T) {
 	// And verify they've all recovered on the second stop
 	departures, err = rt.Departures("s2", time.Date(2020, 1, 15, 23, 0, 0, 0, time.UTC), 30*time.Minute, -1, "", -1, nil)
 	assert.NoError(t, err)
-	assert.Equal(t, []gtfs.Departure{
+	assert.Equal(t, []model.Departure{
 		{
 			RouteID:      "R1",
 			TripID:       "t1",
@@ -1413,7 +1413,7 @@ func TestRealtimeArrivalRecovery(t *testing.T) {
 
 	departures, err = rt.Departures("z2", time.Date(2020, 1, 15, 23, 0, 0, 0, time.UTC), 30*time.Minute, -1, "", -1, nil)
 	assert.NoError(t, err)
-	assert.Equal(t, []gtfs.Departure{
+	assert.Equal(t, []model.Departure{
 		{
 			RouteID:      "R2",
 			TripID:       "t3",
@@ -1427,7 +1427,7 @@ func TestRealtimeArrivalRecovery(t *testing.T) {
 	// for subsequent stops.
 	departures, err = rt.Departures("s3", time.Date(2020, 1, 15, 23, 0, 0, 0, time.UTC), 30*time.Minute, -1, "", -1, nil)
 	assert.NoError(t, err)
-	assert.Equal(t, []gtfs.Departure{
+	assert.Equal(t, []model.Departure{
 		{
 			RouteID:      "R1",
 			TripID:       "t1",

@@ -2,6 +2,8 @@ package storage
 
 import (
 	"time"
+
+	"tidbyt.dev/gtfs/model"
 )
 
 type Storage interface {
@@ -73,28 +75,28 @@ type FeedMetadata struct {
 // EndStopTimes() are called before and after all calls to
 // WriteStopTime(), allowing transactions/batching/whathaveyou.
 type FeedWriter interface {
-	WriteAgency(agency *Agency) error
-	WriteStop(stop *Stop) error
-	WriteRoute(route *Route) error
-	WriteTrip(trip *Trip) error
+	WriteAgency(agency *model.Agency) error
+	WriteStop(stop *model.Stop) error
+	WriteRoute(route *model.Route) error
+	WriteTrip(trip *model.Trip) error
 	BeginTrips() error
 	EndTrips() error
-	WriteCalendar(cal *Calendar) error
-	WriteCalendarDate(caldate *CalendarDate) error
-	WriteStopTime(stopTime *StopTime) error
+	WriteCalendar(cal *model.Calendar) error
+	WriteCalendarDate(caldate *model.CalendarDate) error
+	WriteStopTime(stopTime *model.StopTime) error
 	BeginStopTimes() error
 	EndStopTimes() error
 	Close() error
 }
 
 type FeedReader interface {
-	Agencies() ([]*Agency, error)
-	Stops() ([]*Stop, error)
-	Routes() ([]*Route, error)
-	Trips() ([]*Trip, error)
-	StopTimes() ([]*StopTime, error)
-	Calendars() ([]*Calendar, error)
-	CalendarDates() ([]*CalendarDate, error)
+	Agencies() ([]*model.Agency, error)
+	Stops() ([]*model.Stop, error)
+	Routes() ([]*model.Route, error)
+	Trips() ([]*model.Trip, error)
+	StopTimes() ([]*model.StopTime, error)
+	Calendars() ([]*model.Calendar, error)
+	CalendarDates() ([]*model.CalendarDate, error)
 
 	// Services IDs for all services active on the given
 	// date. Date is given as YYYYMMDD.
@@ -111,7 +113,7 @@ type FeedReader interface {
 
 	// List of all distinct routes with direction data passing
 	// through a stop, with all distinct headsigns.
-	RouteDirections(stopID string) ([]*RouteDirection, error)
+	RouteDirections(stopID string) ([]*model.RouteDirection, error)
 
 	// List of stops near given lat/lng, ordered by distance. At
 	// most limit results (pass 0 for no limit.) Optionally
@@ -126,16 +128,7 @@ type FeedReader interface {
 	// TODO: This feels really stupid. Should probably return only
 	// stops, and include parent stations if it's available. Let
 	// the caller decide what to do with that.
-	NearbyStops(lat float64, lng float64, limit int, routeTypes []RouteType) ([]Stop, error)
-}
-
-// Holds all Headsigns for trips passing through a stop, for a given
-// route and direction.
-type RouteDirection struct {
-	StopID      string
-	RouteID     string
-	DirectionID int8
-	Headsigns   []string
+	NearbyStops(lat float64, lng float64, limit int, routeTypes []model.RouteType) ([]model.Stop, error)
 }
 
 // Filter for StopTimeEvents()
@@ -149,7 +142,7 @@ type StopTimeEventFilter struct {
 	// a set of route types and/or a set of trips.
 	ServiceIDs []string
 	RouteID    string
-	RouteTypes []RouteType
+	RouteTypes []model.RouteType
 	TripIDs    []string
 
 	// Limit results to a direction. Pass -1 to include all
@@ -168,9 +161,9 @@ type StopTimeEventFilter struct {
 // about the associated trip, route and stop, as well as parent
 // station of the stop (if any.)
 type StopTimeEvent struct {
-	StopTime      *StopTime
-	Trip          *Trip
-	Route         *Route
-	Stop          *Stop
-	ParentStation *Stop
+	StopTime      *model.StopTime
+	Trip          *model.Trip
+	Route         *model.Route
+	Stop          *model.Stop
+	ParentStation *model.Stop
 }

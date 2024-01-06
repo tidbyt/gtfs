@@ -6,6 +6,7 @@ import (
 
 	"github.com/gocarina/gocsv"
 
+	"tidbyt.dev/gtfs/model"
 	"tidbyt.dev/gtfs/storage"
 )
 
@@ -44,9 +45,9 @@ func ParseStops(writer storage.FeedWriter, data io.Reader) (map[string]bool, err
 			return nil, fmt.Errorf("empty stop_id")
 		}
 
-		locationType := storage.LocationType(st.LocationType)
+		locationType := model.LocationType(st.LocationType)
 
-		if locationType != storage.LocationTypeGenericNode && locationType != storage.LocationTypeBoardingArea {
+		if locationType != model.LocationTypeGenericNode && locationType != model.LocationTypeBoardingArea {
 			// stop_name is "[o]ptional for locations which are
 			// generic nodes (location_type=3) or boarding areas
 			// (location_type=4)" and otherwise required
@@ -63,7 +64,7 @@ func ParseStops(writer storage.FeedWriter, data io.Reader) (map[string]bool, err
 			}
 		}
 
-		stop := storage.Stop{
+		stop := model.Stop{
 			ID:            st.ID,
 			Code:          st.Code,
 			Name:          st.Name,

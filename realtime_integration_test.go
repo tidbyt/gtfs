@@ -18,7 +18,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"tidbyt.dev/gtfs"
+	"tidbyt.dev/gtfs/model"
 	"tidbyt.dev/gtfs/testutil"
 )
 
@@ -53,7 +53,7 @@ func TestRealtimeIntegrationNYCFerryDelaysOnER(t *testing.T) {
 		20*time.Minute,
 		-1, "", -1, nil)
 	assert.NoError(t, err)
-	assert.Equal(t, []gtfs.Departure{
+	assert.Equal(t, []model.Departure{
 		{ // delayed 391s
 			RouteID:      "ER",
 			TripID:       "321",
@@ -79,7 +79,7 @@ func TestRealtimeIntegrationNYCFerryDelaysOnER(t *testing.T) {
 		-1, "", -1, nil)
 	assert.NoError(t, err)
 	require.Equal(t, 1, len(departures))
-	assert.Equal(t, []gtfs.Departure{
+	assert.Equal(t, []model.Departure{
 		{ // delayed 391s
 			RouteID:      "ER",
 			TripID:       "321",
@@ -131,7 +131,7 @@ func TestRealtimeIntegrationNYCFerryDelayWithRecoveryOnSB(t *testing.T) {
 		5*time.Minute,
 		-1, "", -1, nil)
 	assert.NoError(t, err)
-	assert.Equal(t, []gtfs.Departure{
+	assert.Equal(t, []model.Departure{
 		{
 			RouteID:      "SB",
 			TripID:       "526",
@@ -158,7 +158,7 @@ func TestRealtimeIntegrationNYCFerryDelayWithRecoveryOnSB(t *testing.T) {
 		2*time.Minute,
 		-1, "", -1, nil)
 	assert.NoError(t, err)
-	assert.Equal(t, []gtfs.Departure{
+	assert.Equal(t, []model.Departure{
 		{
 			RouteID:      "SB",
 			TripID:       "526",
@@ -271,7 +271,7 @@ func TestRealtimeIntegrationWMATADelaysAlongATrip(t *testing.T) {
 
 		expectedTime := staticTime.Add(realtimeDelay)
 
-		var d *gtfs.Departure
+		var d *model.Departure
 		deps, err := rt.Departures(tc.StopID, expectedTime.Add(-1*time.Minute), 2*time.Minute, -1, "", -1, nil)
 		require.NoError(t, err)
 		for _, dep := range deps {
@@ -338,7 +338,7 @@ func TestRealtimeIntegrationWMATASkippedStops(t *testing.T) {
 		{"PF_D06_C", "2024-01-03 16:04:05 -0500 EST"},
 		{"PF_D05_C", "2024-01-03 16:05:39 -0500 EST"},
 	} {
-		var d *gtfs.Departure
+		var d *model.Departure
 		deps, err := rt.Departures(tc.StopID, time.Date(2024, 1, 3, 15, 50, 0, 0, tzET), 80*time.Minute, -1, "", -1, nil)
 		require.NoError(t, err)
 		for _, dep := range deps {
@@ -418,7 +418,7 @@ func TestRealtimeIntegrationBART(t *testing.T) {
 		{"PCTR", time.Date(2024, 1, 4, 11, 45, 29, 0, tzSF), "1m29s"}, // propagated
 		// No departure from ANTC, as it's the final stop on the trip
 	} {
-		var d *gtfs.Departure
+		var d *model.Departure
 		deps, err := rt.Departures(tc.StopID, tc.ExpectedTime.Add(-time.Minute), 2*time.Minute, -1, "", -1, nil)
 		require.NoError(t, err)
 		for _, dep := range deps {
