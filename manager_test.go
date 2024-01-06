@@ -733,10 +733,16 @@ func testManagerLoadRealtime(t *testing.T, strg storage.Storage) {
 	server := managerFixture()
 	defer server.Server.Close()
 
-	server.Feeds["/static.zip"] = testutil.BuildZip(t, validFeed())
 	server.Feeds["/realtime.pb"] = validRealtimeFeed(t, time.Unix(12345, 0))
+	server.Feeds["/static.zip"] = testutil.BuildZip(t, validFeed())
 
 	when := time.Date(2019, 2, 1, 0, 0, 0, 0, time.UTC)
+
+	_, err := m.LoadStaticAsync("app1", server.Server.URL+"/static.zip", nil, when)
+	require.ErrorIs(t, err, gtfs.ErrNoActiveFeed)
+	require.NoError(t, m.Refresh(context.Background()))
+	static, err := m.LoadStaticAsync("app1", server.Server.URL+"/static.zip", nil, when)
+	require.NoError(t, err)
 
 	// Mock clock on the downloader to control caching
 	now := time.Now()
@@ -746,24 +752,9 @@ func testManagerLoadRealtime(t *testing.T, strg storage.Storage) {
 	}
 	m.Downloader = dl
 
-	// Realtime feed will initially not load, as static feed is
-	// not yet loaded.
-	realtime, err := m.LoadRealtime(
-		"app1",
-		server.Server.URL+"/static.zip", nil,
-		server.Server.URL+"/realtime.pb", nil,
-		when,
-	)
-	assert.ErrorIs(t, err, gtfs.ErrNoActiveFeed)
-	assert.Nil(t, realtime)
-
-	// A Manager.Refresh() will load the static feed
-	assert.NoError(t, m.Refresh(context.Background()))
-
 	// Realtime feed can now be loaded
-	realtime, err = m.LoadRealtime(
-		"app1",
-		server.Server.URL+"/static.zip", nil,
+	realtime, err := m.LoadRealtime(
+		"app1", static,
 		server.Server.URL+"/realtime.pb", nil,
 		when,
 	)
@@ -775,8 +766,7 @@ func testManagerLoadRealtime(t *testing.T, strg storage.Storage) {
 
 	// Old is still served from cache
 	realtime, err = m.LoadRealtime(
-		"app1",
-		server.Server.URL+"/static.zip", nil,
+		"app1", static,
 		server.Server.URL+"/realtime.pb", nil,
 		when,
 	)
@@ -787,8 +777,7 @@ func testManagerLoadRealtime(t *testing.T, strg storage.Storage) {
 	// will be retrieved
 	now = now.Add(3 * time.Minute)
 	realtime, err = m.LoadRealtime(
-		"app1",
-		server.Server.URL+"/static.zip", nil,
+		"app1", static,
 		server.Server.URL+"/realtime.pb", nil,
 		when,
 	)
@@ -798,8 +787,7 @@ func testManagerLoadRealtime(t *testing.T, strg storage.Storage) {
 	// Bad data results in error
 	server.Feeds["/bad.pb"] = []byte("this isn't protobuf")
 	_, err = m.LoadRealtime(
-		"app1",
-		server.Server.URL+"/static.zip", nil,
+		"app1", static,
 		server.Server.URL+"/bad.pb", nil,
 		when,
 	)
@@ -807,8 +795,7 @@ func testManagerLoadRealtime(t *testing.T, strg storage.Storage) {
 
 	// Missing data is also error
 	_, err = m.LoadRealtime(
-		"app1",
-		server.Server.URL+"/static.zip", nil,
+		"app1", static,
 		server.Server.URL+"/missing.pb", nil,
 		when,
 	)
@@ -817,8 +804,7 @@ func testManagerLoadRealtime(t *testing.T, strg storage.Storage) {
 	// 404 isn't cached
 	server.Feeds["/missing.pb"] = validRealtimeFeed(t, time.Unix(12348, 0))
 	realtime, err = m.LoadRealtime(
-		"app1",
-		server.Server.URL+"/static.zip", nil,
+		"app1", static,
 		server.Server.URL+"/missing.pb", nil,
 		when,
 	)

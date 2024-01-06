@@ -104,17 +104,11 @@ func (m *Manager) LoadStaticAsync(
 // Loads realtime GTFS data from a static and realtime feed.
 func (m *Manager) LoadRealtime(
 	consumer string,
-	staticURL string,
-	staticHeaders map[string]string,
+	static *Static,
 	realtimeURL string,
 	realtimeHeaders map[string]string,
 	when time.Time,
 ) (*Realtime, error) {
-
-	static, err := m.LoadStaticAsync(consumer, staticURL, staticHeaders, when)
-	if err != nil {
-		return nil, fmt.Errorf("loading static: %w", err)
-	}
 
 	feedData, err := m.Downloader.Get(
 		context.Background(),
