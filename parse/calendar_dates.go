@@ -58,7 +58,7 @@ func ParseCalendarDates(
 		writer.WriteCalendarDate(&model.CalendarDate{
 			ServiceID:     cd.ServiceID,
 			Date:          cd.Date,
-			ExceptionType: cd.ExceptionType,
+			ExceptionType: model.ExceptionType(cd.ExceptionType),
 		})
 	}
 

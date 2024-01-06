@@ -32,6 +32,13 @@ const (
 	RouteTypeMonorail             = 12
 )
 
+type ExceptionType int
+
+const (
+	ExceptionTypeAdded   ExceptionType = 1
+	ExceptionTypeRemoved               = 2
+)
+
 type Agency struct {
 	ID       string
 	Name     string
@@ -49,7 +56,7 @@ type Calendar struct {
 type CalendarDate struct {
 	ServiceID     string
 	Date          string
-	ExceptionType int8
+	ExceptionType ExceptionType
 	// TODO: Enum for exception types?
 }
 
