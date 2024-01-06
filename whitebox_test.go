@@ -12,7 +12,7 @@ import (
 // Don't love this, but some internal functions are finicky and need
 // testing.
 
-func TestStaticRangePerDate(t *testing.T) {
+func TestWhiteboxRangePerDate(t *testing.T) {
 	tzET, err := time.LoadLocation("America/New_York")
 	require.NoError(t, err)
 
@@ -150,7 +150,7 @@ func TestStaticRangePerDate(t *testing.T) {
 	}
 }
 
-func TestRealtimeDelayFromOffsetAndTime(t *testing.T) {
+func TestWhiteboxDelayFromOffsetAndTime(t *testing.T) {
 
 	// TODO: Would be great to flesh this out.
 
@@ -162,6 +162,9 @@ func TestRealtimeDelayFromOffsetAndTime(t *testing.T) {
 	}{
 		{time.UTC, "23h6m", "2020-01-15 23:05:55 +0000 UTC", "-5s"},
 		{time.UTC, "23h11m", "2020-01-15 23:11:25 +0000 UTC", "25s"},
+		{time.UTC, "24h10m", "2020-01-01 00:09:00 +0000 UTC", "-1m"},
+		{time.UTC, "24h10m", "2020-01-01 23:50:00 +0000 UTC", "-20m"},
+		{time.UTC, "24h10m", "2020-01-01 00:11:00 +0000 UTC", "1m"},
 	} {
 		offset, err := time.ParseDuration(tc.eventOffset)
 		require.NoError(t, err)
