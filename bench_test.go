@@ -43,14 +43,14 @@ func benchRouteDirections(b *testing.B, backend string) {
 }
 
 func benchStaticDepartures(b *testing.B, backend string) {
-	static := testutil.LoadStaticFile(b, backend, "testdata/caltrain_20160406.zip")
+	static := testutil.LoadStaticFile(b, backend, "testdata/bart_static.zip")
 
 	tz, err := time.LoadLocation("America/Los_Angeles")
 	if err != nil {
 		b.Error(err)
 	}
 
-	when := time.Date(2020, 2, 3, 8, 0, 0, 0, tz)
+	when := time.Date(2024, 1, 4, 11, 26, 42, 0, tz)
 	window := 1 * time.Hour
 
 	stops, err := static.NearbyStops(40.734673, -73.989951, 0, nil)
@@ -104,18 +104,19 @@ func benchRealtimeDepartures(b *testing.B, backend string) {
 		b.Error(err)
 	}
 
-	tzSF, err := time.LoadLocation("America/Los_Angeles")
+	tz, err := time.LoadLocation("America/Los_Angeles")
 	if err != nil {
 		b.Error(err)
 	}
 
-	when := time.Date(2024, 1, 4, 11, 26, 42, 0, tzSF)
+	when := time.Date(2024, 1, 4, 11, 26, 42, 0, tz)
 	window := 30 * time.Minute
 
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		_, err := rt.Departures(stops[i%len(stops)].ID, when, window, -1, "", -1, nil)
+		stopID := stops[i%len(stops)].ID
+		_, err := rt.Departures(stopID, when, window, -1, "", -1, nil)
 		if err != nil {
 			b.Error(err)
 		}
