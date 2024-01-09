@@ -713,6 +713,10 @@ func (w *PSQLFeedWriter) flushStopTimes() error {
 }
 
 func (s *PSQLFeedWriter) Close() error {
+	_, err := s.db.Exec(`ANALYZE`)
+	if err != nil {
+		return fmt.Errorf("analyzing: %w", err)
+	}
 	return nil
 }
 
@@ -1323,7 +1327,7 @@ WHERE hash = $1 AND
 
 func (r *PSQLFeedReader) RouteDirections(stopID string) ([]model.RouteDirection, error) {
 	rows, err := r.db.Query(`
-SELECT trips.route_id, trips.direction_id, trips.headsign, stop_times.headsign
+SELECT DISTINCT trips.route_id, trips.direction_id, trips.headsign, stop_times.headsign
 FROM stop_times
 INNER JOIN trips ON trips.id = stop_times.trip_id
 WHERE stop_times.hash = $1 AND
