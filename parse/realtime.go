@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	gtfsproto "github.com/MobilityData/gtfs-realtime-bindings/golang/gtfs"
 	proto "google.golang.org/protobuf/proto"
+	gtfsproto "tidbyt.dev/gtfs/proto"
 )
 
 type StopTimeUpdateScheduleRelationship int

@@ -12,13 +12,13 @@ import (
 	"testing"
 	"time"
 
-	p "github.com/MobilityData/gtfs-realtime-bindings/golang/gtfs"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	proto "google.golang.org/protobuf/proto"
 
 	"tidbyt.dev/gtfs"
 	"tidbyt.dev/gtfs/downloader"
+	p "tidbyt.dev/gtfs/proto"
 	"tidbyt.dev/gtfs/storage"
 	"tidbyt.dev/gtfs/testutil"
 )

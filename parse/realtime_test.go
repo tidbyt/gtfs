@@ -5,10 +5,11 @@ import (
 	"testing"
 	"time"
 
-	p "github.com/MobilityData/gtfs-realtime-bindings/golang/gtfs"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	proto "google.golang.org/protobuf/proto"
+
+	p "tidbyt.dev/gtfs/proto"
 )
 
 func TestParseRealtimeBadHeader(t *testing.T) {
